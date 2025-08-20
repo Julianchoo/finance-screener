@@ -770,22 +770,9 @@ def analyze_etfs(tickers):
                         try:
                             stock_info = yf.Ticker(holding_symbol).info
                             holding_pe = stock_info.get("trailingPE")
-                            # Debug: Let's see what format dividendYield actually comes in
+                            # Get dividend yield (yfinance returns in decimal format: 0.025 = 2.5%)
                             raw_div_yield = stock_info.get("dividendYield")
-                            print(f"DEBUG: {holding_symbol} raw dividendYield: {raw_div_yield}")
-                            
-                            # Check if raw_div_yield is already in percentage or decimal format
-                            if raw_div_yield:
-                                if raw_div_yield > 1:
-                                    # Already in percentage format (e.g., 2.5 for 2.5%)
-                                    holding_div_yield = raw_div_yield
-                                    print(f"DEBUG: {holding_symbol} treating as percentage: {holding_div_yield}%")
-                                else:
-                                    # In decimal format (e.g., 0.025 for 2.5%)
-                                    holding_div_yield = raw_div_yield * 100
-                                    print(f"DEBUG: {holding_symbol} converting from decimal: {raw_div_yield} -> {holding_div_yield}%")
-                            else:
-                                holding_div_yield = None
+                            holding_div_yield = raw_div_yield  # Keep in decimal format for calculations
                             
                             # Aggregate calculations (weighted averages)
                             if holding_pe and holding_weight > 0:
@@ -793,10 +780,10 @@ def analyze_etfs(tickers):
                                 aggregate_pe_weight += (holding_weight / 100)
                             
                             if holding_div_yield and holding_weight > 0:
-                                # Convert both to decimal format for proper weighted average calculation
-                                contribution = (holding_div_yield / 100) * (holding_weight / 100)
-                                weight_decimal = (holding_weight / 100)
-                                print(f"DEBUG: {holding_symbol} div_yield={holding_div_yield}%, weight={holding_weight}%, contribution={contribution}")
+                                # holding_div_yield is already in decimal format (0.025 = 2.5%)
+                                # Weight needs to be converted to decimal (5% = 0.05)
+                                weight_decimal = holding_weight / 100
+                                contribution = holding_div_yield * weight_decimal
                                 
                                 aggregate_div_sum += contribution
                                 aggregate_div_weight += weight_decimal
@@ -810,20 +797,16 @@ def analyze_etfs(tickers):
                         'name': holding_name,
                         'weight': holding_weight,
                         'pe': holding_pe,
-                        'dividend_yield': holding_div_yield
+                        'dividend_yield': holding_div_yield * 100 if holding_div_yield else None  # Convert to percentage for display
                     })
                 
                 # Calculate aggregate metrics
                 aggregate_pe = aggregate_pe_sum / aggregate_pe_weight if aggregate_pe_weight > 0 else None
                 
-                # Calculate weighted average dividend yield and convert back to percentage
+                # Calculate weighted average dividend yield and convert to percentage
                 if aggregate_div_weight > 0:
+                    # aggregate_div_sum is already weighted, just convert to percentage
                     aggregate_div_yield = (aggregate_div_sum / aggregate_div_weight) * 100
-                    print(f"DEBUG: {symbol} Final aggregate calculation:")
-                    print(f"  aggregate_div_sum={aggregate_div_sum}")
-                    print(f"  aggregate_div_weight={aggregate_div_weight}")
-                    print(f"  raw average={aggregate_div_sum / aggregate_div_weight}")
-                    print(f"  final percentage={aggregate_div_yield}%")
                 else:
                     aggregate_div_yield = None
                 
