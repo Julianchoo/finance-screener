@@ -16,17 +16,5 @@ plotly>=5.15.0
 # Excel file handling
 openpyxl>=3.1.0
 
-# Date and time utilities
-datetime
-
-# System and file operations (built-in)
-# sys
-# os
-# io
-
-# Data processing utilities
-warnings
-
-# Optional: For enhanced performance
-# streamlit-option-menu>=0.3.6  # For enhanced navigation
-# streamlit-aggrid>=0.3.4       # For enhanced data tables
+# Note: datetime, warnings, sys, os, io are built-in Python modules
+# and don't need to be listed in requirements.txt
