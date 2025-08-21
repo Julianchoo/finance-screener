@@ -770,9 +770,16 @@ def analyze_etfs(tickers):
                         try:
                             stock_info = yf.Ticker(holding_symbol).info
                             holding_pe = stock_info.get("trailingPE")
-                            # Get dividend yield (yfinance returns in decimal format: 0.025 = 2.5%)
+                            # Get dividend yield - need to determine actual format from yfinance
                             raw_div_yield = stock_info.get("dividendYield")
-                            holding_div_yield = raw_div_yield  # Keep in decimal format for calculations
+                            print(f"DEBUG: {holding_symbol} raw dividendYield: {raw_div_yield}, weight: {holding_weight}%")
+                            
+                            # Convert to decimal format for calculations
+                            if raw_div_yield is not None:
+                                # yfinance likely returns in percentage format (2.5 = 2.5%), convert to decimal
+                                holding_div_yield = raw_div_yield / 100 if raw_div_yield > 0 else 0
+                            else:
+                                holding_div_yield = None
                             
                             # Aggregate calculations (weighted averages)
                             if holding_pe and holding_weight > 0:
@@ -797,7 +804,7 @@ def analyze_etfs(tickers):
                         'name': holding_name,
                         'weight': holding_weight,
                         'pe': holding_pe,
-                        'dividend_yield': holding_div_yield * 100 if holding_div_yield else None  # Convert to percentage for display
+                        'dividend_yield': holding_div_yield * 100 if holding_div_yield else None  # Convert decimal back to percentage for display
                     })
                 
                 # Calculate aggregate metrics
