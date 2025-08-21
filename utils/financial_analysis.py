@@ -52,6 +52,21 @@ def get_yearly_price_data(ticker, year):
             'avg_volume': np.nan
         }
 
+def calculate_yoy_growth(current_value, previous_value):
+    """
+    Calculate Year-over-Year growth percentage.
+    
+    Args:
+        current_value: Current year value
+        previous_value: Previous year value
+    
+    Returns:
+        float: YoY growth percentage (or None if cannot be calculated)
+    """
+    if pd.notna(current_value) and pd.notna(previous_value) and previous_value != 0:
+        return ((current_value - previous_value) / abs(previous_value)) * 100
+    return None
+
 def calculate_ratios(data_dict, year):
     """
     Calculate derived metrics and ratios for a given year.
@@ -143,7 +158,8 @@ def get_single_stock_analysis(ticker_symbol, years_back=10):
             'Ticker': ticker_symbol,
             'Current Price': info.get('currentPrice', np.nan),
             'Currency': info.get('currency', 'USD'),
-            'Exchange': info.get('fullExchangeName', 'Unknown')
+            'Exchange': info.get('fullExchangeName', 'Unknown'),
+            'Trailing Dividend Yield': info.get('trailingAnnualDividendYield', np.nan)
         }
         
         print(f"Company: {company_info['Company Name']}")

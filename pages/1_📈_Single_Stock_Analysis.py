@@ -17,6 +17,28 @@ from config import SINGLE_STOCK_METRICS, CHART_COLORS
 
 st.set_page_config(page_title="Single Stock Analysis", page_icon="📈", layout="wide")
 
+def calculate_yoy_growth(current_value, previous_value):
+    """Calculate Year-over-Year growth percentage"""
+    if pd.notna(current_value) and pd.notna(previous_value) and previous_value != 0:
+        return ((current_value - previous_value) / abs(previous_value)) * 100
+    return None
+
+def get_yoy_metrics(yearly_data, analysis_years, latest_year, metric_name):
+    """Get current value and YoY growth for a metric"""
+    current_value = yearly_data[latest_year].get(metric_name, np.nan) if latest_year in yearly_data else np.nan
+    
+    # Find previous year with data
+    previous_value = np.nan
+    for year in sorted(analysis_years, reverse=True):
+        if year < latest_year and year in yearly_data:
+            prev_val = yearly_data[year].get(metric_name, np.nan)
+            if pd.notna(prev_val):
+                previous_value = prev_val
+                break
+    
+    yoy_growth = calculate_yoy_growth(current_value, previous_value)
+    return current_value, yoy_growth
+
 def create_metrics_chart(data, metric_name, years):
     """Create a line chart for a specific metric over years"""
     values = []
@@ -51,6 +73,162 @@ def create_metrics_chart(data, metric_name, years):
     )
     
     return fig
+
+def create_interactive_overview_chart(yearly_data, analysis_years, ticker_symbol, chart_type="Price Evolution"):
+    """Create an interactive chart with multiple view options"""
+    if not analysis_years:
+        return None
+    
+    fig = go.Figure()
+    
+    if chart_type == "Price Evolution":
+        # Historical stock prices
+        prices = []
+        years = []
+        for year in sorted(analysis_years):
+            if year in yearly_data:
+                closing_price = yearly_data[year].get('Closing Price', np.nan)
+                if pd.notna(closing_price):
+                    prices.append(closing_price)
+                    years.append(year)
+        
+        if prices:
+            fig.add_trace(go.Scatter(
+                x=years,
+                y=prices,
+                mode='lines+markers',
+                name='Stock Price',
+                line=dict(color=CHART_COLORS[0], width=3),
+                marker=dict(size=8),
+                hovertemplate='<b>%{x}</b><br>Price: $%{y:.2f}<extra></extra>'
+            ))
+            fig.update_layout(yaxis_title="Stock Price ($)")
+            
+    elif chart_type == "Market Cap":
+        # Market Cap = Stock Price × Shares Outstanding
+        market_caps = []
+        years = []
+        for year in sorted(analysis_years):
+            if year in yearly_data:
+                price = yearly_data[year].get('Closing Price', np.nan)
+                shares = yearly_data[year].get('Shares Outstanding', np.nan)
+                if pd.notna(price) and pd.notna(shares):
+                    market_cap = price * shares
+                    market_caps.append(market_cap / 1e9)  # Convert to billions
+                    years.append(year)
+        
+        if market_caps:
+            fig.add_trace(go.Scatter(
+                x=years,
+                y=market_caps,
+                mode='lines+markers',
+                name='Market Cap',
+                line=dict(color=CHART_COLORS[1], width=3),
+                marker=dict(size=8),
+                hovertemplate='<b>%{x}</b><br>Market Cap: $%{y:.1f}B<extra></extra>'
+            ))
+            fig.update_layout(yaxis_title="Market Cap (Billions $)")
+            
+    elif chart_type == "Revenue":
+        revenues = []
+        years = []
+        for year in sorted(analysis_years):
+            if year in yearly_data:
+                revenue = yearly_data[year].get('Revenue', np.nan)
+                if pd.notna(revenue):
+                    revenues.append(revenue / 1e9)  # Convert to billions
+                    years.append(year)
+        
+        if revenues:
+            fig.add_trace(go.Scatter(
+                x=years,
+                y=revenues,
+                mode='lines+markers',
+                name='Revenue',
+                line=dict(color=CHART_COLORS[2], width=3),
+                marker=dict(size=8),
+                hovertemplate='<b>%{x}</b><br>Revenue: $%{y:.1f}B<extra></extra>'
+            ))
+            fig.update_layout(yaxis_title="Revenue (Billions $)")
+            
+    elif chart_type == "Earnings":
+        earnings = []
+        years = []
+        for year in sorted(analysis_years):
+            if year in yearly_data:
+                net_income = yearly_data[year].get('Net Income', np.nan)
+                if pd.notna(net_income):
+                    earnings.append(net_income / 1e9)  # Convert to billions
+                    years.append(year)
+        
+        if earnings:
+            fig.add_trace(go.Scatter(
+                x=years,
+                y=earnings,
+                mode='lines+markers',
+                name='Net Income',
+                line=dict(color=CHART_COLORS[3], width=3),
+                marker=dict(size=8),
+                hovertemplate='<b>%{x}</b><br>Net Income: $%{y:.1f}B<extra></extra>'
+            ))
+            fig.update_layout(yaxis_title="Net Income (Billions $)")
+            
+    elif chart_type == "Dividend Total":
+        dividends = []
+        years = []
+        for year in sorted(analysis_years):
+            if year in yearly_data:
+                div_payment = yearly_data[year].get('Dividend Payment', np.nan)
+                if pd.notna(div_payment):
+                    dividends.append(abs(div_payment) / 1e9)  # Convert to billions, make positive
+                    years.append(year)
+        
+        if dividends:
+            fig.add_trace(go.Scatter(
+                x=years,
+                y=dividends,
+                mode='lines+markers',
+                name='Total Dividends',
+                line=dict(color=CHART_COLORS[4], width=3),
+                marker=dict(size=8),
+                hovertemplate='<b>%{x}</b><br>Dividends: $%{y:.1f}B<extra></extra>'
+            ))
+            fig.update_layout(yaxis_title="Total Dividends (Billions $)")
+            
+    elif chart_type == "Dividend Per Share":
+        dps_values = []
+        years = []
+        for year in sorted(analysis_years):
+            if year in yearly_data:
+                dps = yearly_data[year].get('Dividend Per Share', np.nan)
+                if pd.notna(dps):
+                    dps_values.append(dps)
+                    years.append(year)
+        
+        if dps_values:
+            fig.add_trace(go.Scatter(
+                x=years,
+                y=dps_values,
+                mode='lines+markers',
+                name='Dividend Per Share',
+                line=dict(color=CHART_COLORS[5], width=3),
+                marker=dict(size=8),
+                hovertemplate='<b>%{x}</b><br>DPS: $%{y:.2f}<extra></extra>'
+            ))
+            fig.update_layout(yaxis_title="Dividend Per Share ($)")
+    
+    if fig.data:  # Only update layout if we have data
+        fig.update_layout(
+            title=f"{ticker_symbol} - {chart_type}",
+            xaxis_title="Year",
+            template="plotly_white",
+            height=500,
+            showlegend=True,
+            hovermode='x unified'
+        )
+        return fig
+    
+    return None
 
 def create_comparison_chart(data, metrics, years, title):
     """Create a multi-line chart comparing multiple metrics"""
@@ -164,15 +342,26 @@ def main():
         # Company header
         st.success(f"✅ Analysis complete for **{company_info['Company Name']}** ({ticker})")
         
-        # Company overview
-        col1, col2, col3, col4 = st.columns(4)
+        # Company overview - basic info row
+        col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
-            st.metric("Current Price", f"${company_info.get('Current Price', 'N/A')}")
+            current_price = company_info.get('Current Price', np.nan)
+            if pd.notna(current_price):
+                st.metric("Current Price", f"${current_price:.2f}")
+            else:
+                st.metric("Current Price", "N/A")
         with col2:
             st.metric("Currency", company_info.get('Currency', 'USD'))
         with col3:
             st.metric("Exchange", company_info.get('Exchange', 'Unknown'))
         with col4:
+            # Display trailing dividend yield
+            div_yield = company_info.get('Trailing Dividend Yield', np.nan)
+            if pd.notna(div_yield):
+                st.metric("Dividend Yield", f"{div_yield*100:.2f}%")
+            else:
+                st.metric("Dividend Yield", "N/A")
+        with col5:
             st.metric("Years Analyzed", len(analysis_years))
         
         # Tabs for different sections
@@ -183,42 +372,109 @@ def main():
         with tab1:
             st.subheader("📊 Financial Overview")
             
-            # Key metrics overview
+            # Key metrics overview with YoY growth
             if analysis_years and analysis_years[-1] in yearly_data:
                 latest_year = analysis_years[-1]
-                latest_data = yearly_data[latest_year]
                 
+                # Financial Performance Metrics
+                st.subheader("💰 Financial Performance")
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    st.metric(
-                        f"Revenue ({latest_year})", 
-                        f"${latest_data.get('Revenue', 0):,.0f}" if pd.notna(latest_data.get('Revenue')) else "N/A"
-                    )
-                    st.metric(
-                        f"Net Income ({latest_year})", 
-                        f"${latest_data.get('Net Income', 0):,.0f}" if pd.notna(latest_data.get('Net Income')) else "N/A"
-                    )
+                    # Revenue with YoY
+                    revenue_val, revenue_yoy = get_yoy_metrics(yearly_data, analysis_years, latest_year, 'Revenue')
+                    if pd.notna(revenue_val):
+                        delta = f"{revenue_yoy:+.1f}%" if pd.notna(revenue_yoy) else None
+                        st.metric(f"Revenue ({latest_year})", f"${revenue_val:,.0f}", delta=delta)
+                    else:
+                        st.metric(f"Revenue ({latest_year})", "N/A")
+                    
+                    # Net Income with YoY
+                    income_val, income_yoy = get_yoy_metrics(yearly_data, analysis_years, latest_year, 'Net Income')
+                    if pd.notna(income_val):
+                        delta = f"{income_yoy:+.1f}%" if pd.notna(income_yoy) else None
+                        st.metric(f"Net Income ({latest_year})", f"${income_val:,.0f}", delta=delta)
+                    else:
+                        st.metric(f"Net Income ({latest_year})", "N/A")
                 
                 with col2:
-                    st.metric(
-                        f"EPS ({latest_year})", 
-                        f"${latest_data.get('EPS', 0):.2f}" if pd.notna(latest_data.get('EPS')) else "N/A"
-                    )
-                    st.metric(
-                        f"PE Ratio (Current Price)", 
-                        f"{latest_data.get('PE Ratio (Current Price)', 0):.1f}" if pd.notna(latest_data.get('PE Ratio (Current Price)')) else "N/A"
-                    )
+                    # EPS with YoY
+                    eps_val, eps_yoy = get_yoy_metrics(yearly_data, analysis_years, latest_year, 'EPS')
+                    if pd.notna(eps_val):
+                        delta = f"{eps_yoy:+.1f}%" if pd.notna(eps_yoy) else None
+                        st.metric(f"EPS ({latest_year})", f"${eps_val:.2f}", delta=delta)
+                    else:
+                        st.metric(f"EPS ({latest_year})", "N/A")
+                    
+                    # Use trailing PE from current data instead of calculated PE
+                    current_pe = company_info.get('Current Price', np.nan)
+                    if pd.notna(current_pe) and pd.notna(eps_val) and eps_val != 0:
+                        trailing_pe = current_pe / eps_val
+                        st.metric("Trailing PE Ratio", f"{trailing_pe:.1f}")
+                    else:
+                        st.metric("Trailing PE Ratio", "N/A")
                 
                 with col3:
-                    st.metric(
-                        f"Dividend Per Share ({latest_year})", 
-                        f"${latest_data.get('Dividend Per Share', 0):.2f}" if pd.notna(latest_data.get('Dividend Per Share')) else "N/A"
-                    )
-                    st.metric(
-                        f"Debt to Equity ({latest_year})", 
-                        f"{latest_data.get('Debt to Equity', 0):.2f}" if pd.notna(latest_data.get('Debt to Equity')) else "N/A"
-                    )
+                    # Dividend Per Share with YoY
+                    dps_val, dps_yoy = get_yoy_metrics(yearly_data, analysis_years, latest_year, 'Dividend Per Share')
+                    if pd.notna(dps_val):
+                        delta = f"{dps_yoy:+.1f}%" if pd.notna(dps_yoy) else None
+                        st.metric(f"Dividend Per Share ({latest_year})", f"${dps_val:.2f}", delta=delta)
+                    else:
+                        st.metric(f"Dividend Per Share ({latest_year})", "N/A")
+                    
+                    # Debt to Equity
+                    debt_equity_val, debt_equity_yoy = get_yoy_metrics(yearly_data, analysis_years, latest_year, 'Debt to Equity')
+                    if pd.notna(debt_equity_val):
+                        delta = f"{debt_equity_yoy:+.1f}%" if pd.notna(debt_equity_yoy) else None
+                        st.metric(f"Debt to Equity ({latest_year})", f"{debt_equity_val:.2f}", delta=delta)
+                    else:
+                        st.metric(f"Debt to Equity ({latest_year})", "N/A")
+                
+                # Interactive Chart Section
+                st.markdown("---")
+                st.subheader("📈 Interactive Analysis Chart")
+                
+                # Chart type selector
+                chart_options = [
+                    "Price Evolution", "Market Cap", "Revenue", 
+                    "Earnings", "Dividend Total", "Dividend Per Share"
+                ]
+                
+                selected_chart = st.selectbox(
+                    "Select Chart Type:",
+                    chart_options,
+                    index=0,
+                    help="Choose which metric to visualize over time"
+                )
+                
+                # Create and display the interactive chart
+                interactive_chart = create_interactive_overview_chart(
+                    yearly_data, analysis_years, ticker, selected_chart
+                )
+                
+                if interactive_chart:
+                    st.plotly_chart(interactive_chart, use_container_width=True)
+                else:
+                    st.info(f"📊 No data available for {selected_chart} visualization.")
+                
+                # Data availability and source information
+                st.markdown("---")
+                with st.expander("📋 Data Information & Limitations"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown("**📊 Data Availability:**")
+                        st.markdown(f"- **Years Available:** {len(analysis_years)} years ({min(analysis_years)}-{max(analysis_years)})")
+                        st.markdown("- **Financial Statements:** ~4-5 years (Yahoo Finance limitation)")  
+                        st.markdown("- **Price Data:** Can go back to ~1970 for most stocks")
+                        st.markdown("- **Source:** Yahoo Finance API via yfinance library")
+                    
+                    with col2:
+                        st.markdown("**💡 Understanding the Data:**")
+                        st.markdown("- **Trailing PE:** Current price ÷ Latest annual EPS")
+                        st.markdown("- **Trailing Dividend Yield:** Annual dividend rate ÷ Current price")
+                        st.markdown("- **YoY Growth:** Percentage change from previous year")
+                        st.markdown("- **Market Cap:** Stock price × Shares outstanding")
         
         with tab2:
             st.subheader("💰 Financial Metrics by Category")

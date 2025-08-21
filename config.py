@@ -108,7 +108,7 @@ ANALYSIS_CATEGORIES = {
 # Single Stock Analysis Metric Groups
 SINGLE_STOCK_METRICS = {
     'Company Information': [
-        'Company Name', 'Ticker', 'Current Price', 'Currency', 'Exchange'
+        'Company Name', 'Ticker', 'Current Price', 'Currency', 'Exchange', 'Trailing Dividend Yield'
     ],
     'P&L Statement': [
         'Revenue', 'Gross Profit', 'Gross Margin %', 'EBITDA', 'EBITDA Margin %',
