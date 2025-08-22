@@ -12,7 +12,7 @@ import os
 # Add the parent directory to sys.path to import utils
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.financial_analysis import analyze_etfs
+from utils.financial_analysis import analyze_etfs, get_exchange_rate, convert_price_series
 from config import TICKER_LISTS, ETF_METRICS, CHART_COLORS
 
 st.set_page_config(page_title="ETF Analysis", page_icon="🎯", layout="wide")
@@ -117,6 +117,73 @@ def create_comparison_chart(etfs_data, metric, chart_type='bar'):
     
     return fig
 
+def create_price_evolution_chart(etfs_data, period="1y", target_currency="USD", use_historical_fx=True):
+    """Create multi-ETF price evolution chart with currency conversion"""
+    import yfinance as yf
+    
+    fig = go.Figure()
+    exchange_rates = {}
+    
+    for etf in etfs_data:
+        ticker = etf.get('Ticker')
+        currency = etf.get('Currency', 'USD')
+        
+        if not ticker:
+            continue
+            
+        try:
+            # Get price history
+            stock = yf.Ticker(ticker)
+            hist = stock.history(period=period)
+            
+            if hist.empty:
+                continue
+            
+            # Convert prices if needed
+            prices = hist['Close']
+            if currency != target_currency:
+                prices = convert_price_series(prices, currency, target_currency, exchange_rates, use_historical_fx)
+            
+            # Normalize to start at 100 for comparison
+            normalized_prices = (prices / prices.iloc[0]) * 100
+            
+            fig.add_trace(go.Scatter(
+                x=hist.index,
+                y=normalized_prices,
+                mode='lines',
+                name=f"{ticker} ({currency}→{target_currency})",
+                line=dict(width=2),
+                hovertemplate=f"<b>{ticker}</b><br>Date: %{{x}}<br>Price: %{{y:.2f}} {target_currency}<br><extra></extra>"
+            ))
+            
+        except Exception as e:
+            print(f"Error creating price chart for {ticker}: {e}")
+            continue
+    
+    if fig.data:
+        fig.update_layout(
+            title=f"ETF Price Evolution Comparison (Normalized to 100, {target_currency})",
+            xaxis_title="Date",
+            yaxis_title=f"Normalized Price Index (Start = 100)",
+            template="plotly_white",
+            height=500,
+            hovermode='x unified',
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
+        )
+        
+        # Add a horizontal line at 100 (starting point)
+        fig.add_hline(y=100, line_dash="dash", line_color="gray", opacity=0.5)
+        
+        return fig
+    
+    return None
+
 def format_number(value, metric_type='currency'):
     """Format numbers based on metric type"""
     if value is None or (isinstance(value, float) and np.isnan(value)):
@@ -218,26 +285,102 @@ def main():
         # Analysis header
         st.success(f"✅ Successfully analyzed {len(results)} ETFs")
         
-        # ETF overview table
+        # ETF overview table with toggleable columns
         st.subheader("📋 ETF Overview")
         
+        # Column selection interface
+        st.markdown("**Select columns to display:**")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            show_basic = st.checkbox("Basic Info", value=True, help="Ticker, Name, Current Price")
+            show_performance = st.checkbox("Performance", value=True, help="1Y, 3Y CAGR, 5Y price changes")
+            show_holdings = st.checkbox("Top Holdings", value=False, help="Top 3 holdings with tickers and weights")
+        
+        with col2:
+            show_costs = st.checkbox("Costs & Yields", value=True, help="Expense ratio and dividend yields")
+            show_metrics = st.checkbox("Aggregate Metrics", value=True, help="PE and dividend yield from top 10 holdings")
+            show_strategy = st.checkbox("Strategy", value=False, help="Short fund strategy summary")
+        
+        with col3:
+            show_details = st.checkbox("Exchange & Currency", value=False, help="ISIN, exchange and base currency info")
+            show_category = st.checkbox("Category", value=True, help="Fund category and sector")
+        
+        # Build overview data based on selections
         overview_data = []
         for etf in results:
-            overview_data.append({
-                'Ticker': etf.get('Ticker', 'N/A'),
-                'Name': etf.get('Name', 'N/A'),
-                'Current Price': format_number(etf.get('Current Price'), 'currency'),
-                'Expense Ratio': f"{etf.get('Expense Ratio', 0):.2f}%" if etf.get('Expense Ratio') else "N/A",
-                'ETF Dividend Yield': f"{etf.get('Dividend Yield (%)', 0):.2f}%" if etf.get('Dividend Yield (%)') else "N/A",
-                'Aggregate PE': f"{etf.get('Aggregate PE', 0):.1f}" if etf.get('Aggregate PE') else "N/A",
-                'Agg Div Yield': f"{etf.get('Aggregate Dividend Yield (%)', 0):.2f}%" if etf.get('Aggregate Dividend Yield (%)') else "N/A",
-                '3Y CAGR': f"{etf.get('3Y Price CAGR (%)', 0):+.1f}%" if etf.get('3Y Price CAGR (%)') else "N/A",
-                'Top Holdings': etf.get('Top Holdings Count', 0),
-                'Category': etf.get('Category', 'N/A')
-            })
+            row = {}
+            
+            if show_basic:
+                row['Ticker'] = etf.get('Ticker', 'N/A')
+                row['Name'] = etf.get('Name', 'N/A')
+                row['Current Price'] = format_number(etf.get('Current Price'), 'currency')
+            
+            if show_details:
+                row['ISIN'] = etf.get('ISIN', 'N/A')
+                row['Exchange'] = etf.get('Exchange', 'N/A')
+                row['Currency'] = etf.get('Currency', 'N/A')
+            
+            if show_costs:
+                row['Expense Ratio'] = f"{etf.get('Expense Ratio', 0):.2f}%" if etf.get('Expense Ratio') else "N/A"
+                row['ETF Div Yield'] = f"{etf.get('Dividend Yield (%)', 0):.2f}%" if etf.get('Dividend Yield (%)') else "N/A"
+            
+            if show_metrics:
+                row['Agg PE (Top 10)'] = f"{etf.get('Aggregate PE', 0):.1f}" if etf.get('Aggregate PE') else "N/A"
+                row['Agg Div Yield (Top 10)'] = f"{etf.get('Aggregate Dividend Yield (%)', 0):.2f}%" if etf.get('Aggregate Dividend Yield (%)') else "N/A"
+            
+            if show_performance:
+                row['1Y Change (Price)'] = f"{etf.get('1Y Price Change (%)', 0):+.1f}%" if etf.get('1Y Price Change (%)') else "N/A"
+                row['3Y CAGR (Price)'] = f"{etf.get('3Y Price CAGR (%)', 0):+.1f}%" if etf.get('3Y Price CAGR (%)') else "N/A"
+                row['5Y Change (Price)'] = f"{etf.get('5Y Price Change (%)', 0):+.1f}%" if etf.get('5Y Price Change (%)') else "N/A"
+            
+            if show_holdings:
+                # Get top 3 holdings
+                holdings_data = etf.get('Holdings Data', [])
+                for i in range(min(3, len(holdings_data))):
+                    holding = holdings_data[i]
+                    row[f'Top {i+1} Ticker'] = holding.get('symbol', 'N/A')
+                    row[f'Top {i+1} Weight'] = f"{holding.get('weight', 0):.1f}%" if holding.get('weight') else "N/A"
+            
+            if show_strategy:
+                row['Strategy Summary'] = etf.get('Strategy Summary', 'N/A')
+                
+            if show_category:
+                row['Category'] = etf.get('Category', 'N/A')
+            
+            overview_data.append(row)
         
         df_overview = pd.DataFrame(overview_data)
-        st.dataframe(df_overview, use_container_width=True, hide_index=True)
+        
+        # Display with column configuration for better tooltips
+        column_config = {}
+        if 'Agg PE (Top 10)' in df_overview.columns:
+            column_config['Agg PE (Top 10)'] = st.column_config.Column(
+                "Agg PE (Top 10)",
+                help="Weighted average P/E ratio of top 10 holdings"
+            )
+        if 'Agg Div Yield (Top 10)' in df_overview.columns:
+            column_config['Agg Div Yield (Top 10)'] = st.column_config.Column(
+                "Agg Div Yield (Top 10)", 
+                help="Weighted average dividend yield of top 10 holdings"
+            )
+        if '1Y Change (Price)' in df_overview.columns:
+            column_config['1Y Change (Price)'] = st.column_config.Column(
+                "1Y Change (Price)",
+                help="1-year price change (excluding dividends)"
+            )
+        if '3Y CAGR (Price)' in df_overview.columns:
+            column_config['3Y CAGR (Price)'] = st.column_config.Column(
+                "3Y CAGR (Price)",
+                help="3-year compound annual growth rate (price only, excluding dividends)"
+            )
+        if '5Y Change (Price)' in df_overview.columns:
+            column_config['5Y Change (Price)'] = st.column_config.Column(
+                "5Y Change (Price)",
+                help="5-year total price change (excluding dividends)"
+            )
+        
+        st.dataframe(df_overview, use_container_width=True, hide_index=True, column_config=column_config)
         
         # Tabs for different analysis sections
         tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -424,6 +567,61 @@ def main():
         
         with tab3:
             st.subheader("💹 Performance Analysis")
+            
+            # Multi-ETF price evolution chart
+            st.markdown("**ETF Price Evolution Comparison**")
+            
+            # Chart controls
+            col1, col2, col3, col4 = st.columns([2, 2, 2, 2])
+            with col1:
+                time_period = st.selectbox(
+                    "Time Period",
+                    options=["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"],
+                    index=5,  # Default to 1y
+                    help="Select time period for price comparison"
+                )
+            
+            with col2:
+                base_currency = st.selectbox(
+                    "Base Currency",
+                    options=["USD", "EUR", "GBP", "CHF", "JPY"],
+                    index=0,  # Default to USD
+                    help="Convert all prices to this currency for comparison"
+                )
+            
+            with col3:
+                use_historical_fx = st.checkbox(
+                    "Historical FX Rates",
+                    value=True,
+                    help="Use historical exchange rates (recommended) vs current rates for all dates"
+                )
+            
+            with col4:
+                normalize_chart = st.checkbox(
+                    "Normalize Prices",
+                    value=True,
+                    help="Start all ETFs at 100 for relative performance comparison"
+                )
+            
+            # Generate and display the chart
+            if st.button("🔄 Update Price Chart") or 'price_chart_period' not in st.session_state:
+                st.session_state['price_chart_period'] = time_period
+                st.session_state['price_chart_currency'] = base_currency
+                st.session_state['price_chart_normalize'] = normalize_chart
+                
+                with st.spinner("Loading price data and converting currencies..."):
+                    price_chart = create_price_evolution_chart(results, time_period, base_currency, use_historical_fx)
+                    if price_chart:
+                        st.session_state['price_chart'] = price_chart
+                    else:
+                        st.warning("Could not generate price comparison chart")
+            
+            # Display cached chart
+            if 'price_chart' in st.session_state:
+                st.plotly_chart(st.session_state['price_chart'], use_container_width=True)
+            
+            # Divider before existing performance metrics
+            st.markdown("---")
             
             # Performance metrics
             performance_data = []

@@ -727,6 +727,144 @@ def export_financials_to_excel(financials_data, output_filename="financial_compa
         return False
 
 # =====================================================
+# CURRENCY CONVERSION FUNCTIONS
+# =====================================================
+
+def get_exchange_rate(from_currency, to_currency):
+    """
+    Get exchange rate from one currency to another using yfinance.
+    
+    Args:
+        from_currency (str): Source currency (e.g., 'EUR')
+        to_currency (str): Target currency (e.g., 'USD')
+    
+    Returns:
+        float: Exchange rate or None if not found
+    """
+    if from_currency == to_currency:
+        return 1.0
+        
+    try:
+        # yfinance uses format like EURUSD=X for EUR to USD
+        if from_currency == 'USD':
+            # For USD to other currencies, we need the inverse
+            symbol = f"{to_currency}USD=X"
+            ticker = yf.Ticker(symbol)
+            rate = ticker.info.get('regularMarketPrice')
+            return 1.0 / rate if rate else None
+        else:
+            # For other currencies to USD
+            symbol = f"{from_currency}USD=X"
+            ticker = yf.Ticker(symbol)
+            rate = ticker.info.get('regularMarketPrice')
+            if to_currency != 'USD' and rate:
+                # Chain conversion through USD
+                usd_to_target = get_exchange_rate('USD', to_currency)
+                return rate * usd_to_target if usd_to_target else None
+            return rate
+    except Exception as e:
+        print(f"Error getting exchange rate {from_currency} to {to_currency}: {e}")
+        return None
+
+def get_historical_exchange_rates(from_currency, to_currency, start_date, end_date):
+    """
+    Get historical exchange rates for a date range using yfinance.
+    
+    Args:
+        from_currency: Source currency (e.g., 'EUR')
+        to_currency: Target currency (e.g., 'USD')
+        start_date: Start date for historical data
+        end_date: End date for historical data
+    
+    Returns:
+        pandas Series: Historical exchange rates indexed by date
+    """
+    if from_currency == to_currency:
+        return None
+    
+    try:
+        # Construct currency pair symbol
+        if from_currency == 'USD':
+            # For USD to other currencies, we need the inverse
+            symbol = f"{to_currency}USD=X"
+            ticker = yf.Ticker(symbol)
+            hist = ticker.history(start=start_date, end=end_date)
+            if not hist.empty:
+                return 1.0 / hist['Close']  # Invert for USD to other
+        else:
+            # For other currencies to USD or through USD
+            symbol = f"{from_currency}USD=X"
+            ticker = yf.Ticker(symbol)
+            hist = ticker.history(start=start_date, end=end_date)
+            if not hist.empty:
+                rates = hist['Close']
+                if to_currency != 'USD':
+                    # Chain conversion through USD
+                    usd_to_target = get_historical_exchange_rates('USD', to_currency, start_date, end_date)
+                    if usd_to_target is not None:
+                        # Align dates and multiply rates
+                        aligned_rates = rates.reindex(usd_to_target.index, method='ffill')
+                        return aligned_rates * usd_to_target
+                return rates
+    except Exception as e:
+        print(f"Error getting historical exchange rates {from_currency} to {to_currency}: {e}")
+    
+    return None
+
+def convert_price_series(price_series, from_currency, to_currency, exchange_rates=None, use_historical=True):
+    """
+    Convert a price series from one currency to another using historical exchange rates.
+    
+    Args:
+        price_series: pandas Series with price data (DatetimeIndex)
+        from_currency: Source currency
+        to_currency: Target currency
+        exchange_rates: Dictionary of cached exchange rates (for current rates only)
+        use_historical: Whether to use historical exchange rates (default True)
+    
+    Returns:
+        pandas Series: Converted price series
+    """
+    if from_currency == to_currency:
+        return price_series
+    
+    if use_historical and len(price_series) > 1:
+        # Use historical exchange rates
+        start_date = price_series.index.min()
+        end_date = price_series.index.max()
+        
+        historical_rates = get_historical_exchange_rates(from_currency, to_currency, start_date, end_date)
+        
+        if historical_rates is not None and not historical_rates.empty:
+            # Align exchange rates with price dates (forward fill missing dates)
+            aligned_rates = historical_rates.reindex(price_series.index, method='ffill')
+            
+            # Handle any remaining NaN values with backward fill
+            aligned_rates = aligned_rates.fillna(method='bfill')
+            
+            if not aligned_rates.isna().all():
+                return price_series * aligned_rates
+            else:
+                print(f"Warning: Could not get sufficient historical rates for {from_currency} to {to_currency}, using current rate")
+        else:
+            print(f"Warning: No historical exchange rate data for {from_currency} to {to_currency}, using current rate")
+    
+    # Fallback to current exchange rate
+    if exchange_rates is None:
+        exchange_rates = {}
+    
+    rate_key = f"{from_currency}_{to_currency}"
+    if rate_key not in exchange_rates:
+        exchange_rates[rate_key] = get_exchange_rate(from_currency, to_currency)
+    
+    rate = exchange_rates[rate_key]
+    if rate:
+        return price_series * rate
+    else:
+        print(f"Warning: Could not convert {from_currency} to {to_currency}")
+        return price_series
+
+# =====================================================
 # ETF ANALYSIS FUNCTIONS
 # =====================================================
 
@@ -759,7 +897,32 @@ def analyze_etfs(tickers):
             market_cap = info.get("marketCap")
             managing_company = info.get("fundFamily")
             nav_price = info.get("navPrice")
+            exchange = info.get("exchange", info.get("fullExchangeName", "N/A"))
+            isin = info.get("isin", "N/A")
+            
+            # Dividend yield with fallback options
             div_yield = info.get('dividendYield')
+            if div_yield is None:
+                div_yield = info.get('trailingAnnualDividendYield')
+            if div_yield is None:
+                div_yield = info.get('yield')
+            
+            # If still no dividend yield, try calculating from dividend history
+            if div_yield is None and current_price:
+                try:
+                    dividends = etf.dividends
+                    if not dividends.empty:
+                        # Get last 12 months of dividends
+                        recent_dividends = dividends[dividends.index > (dividends.index.max() - pd.DateOffset(months=12))]
+                        annual_dividends = recent_dividends.sum()
+                        if annual_dividends > 0:
+                            div_yield = (annual_dividends / current_price) * 100
+                            print(f"DEBUG: {symbol} calculated div_yield from history: {div_yield:.3f}%")
+                except Exception as e:
+                    print(f"DEBUG: {symbol} failed to calculate dividend yield from history: {e}")
+            
+            print(f"DEBUG: {symbol} dividend yield sources: dividendYield={info.get('dividendYield')}, trailingAnnualDividendYield={info.get('trailingAnnualDividendYield')}, yield={info.get('yield')}")
+            print(f"DEBUG: {symbol} final div_yield: {div_yield}")
 
             # Top holdings (expand to top 10)
             holdings_data = []
@@ -823,7 +986,8 @@ def analyze_etfs(tickers):
                         'dividend_yield': holding_div_yield * 100 if holding_div_yield else None  # Convert decimal back to percentage for display
                     })
                 
-                # Calculate aggregate metrics
+                # Calculate aggregate metrics from top 10 holdings (weighted averages)
+                # Verified: Loop above processes min(10, len(tops)) holdings for aggregation
                 aggregate_pe = aggregate_pe_sum / aggregate_pe_weight if aggregate_pe_weight > 0 else None
                 
                 # Calculate weighted average dividend yield and convert to percentage
@@ -839,30 +1003,55 @@ def analyze_etfs(tickers):
                 aggregate_pe = None
                 aggregate_div_yield = None
 
-            # Price data
-            hist = etf.history(period="1y")
-            current_price = hist['Close'].iloc[-1] if not hist.empty else None
-            price_12m_ago = hist['Close'].iloc[0] if not hist.empty else None
+            # Price data with multiple time periods
+            hist_1y = etf.history(period="1y")
+            current_price = hist_1y['Close'].iloc[-1] if not hist_1y.empty else None
+            price_12m_ago = hist_1y['Close'].iloc[0] if not hist_1y.empty else None
             
-            # Calculate 3-year earnings CAGR for the ETF itself
-            earnings_cagr = None
+            # Calculate 1-year price change
+            price_1y_change = None
+            if current_price and price_12m_ago:
+                price_1y_change = ((current_price - price_12m_ago) / price_12m_ago) * 100
+            
+            # Calculate 3-year price CAGR
+            price_3y_cagr = None
             try:
                 hist_3y = etf.history(period="3y")
                 if not hist_3y.empty and len(hist_3y) > 252 * 2:  # At least 2 years of data
                     price_3y_ago = hist_3y['Close'].iloc[0]
                     if price_3y_ago and current_price:
-                        earnings_cagr = ((current_price / price_3y_ago) ** (1/3) - 1) * 100
+                        price_3y_cagr = ((current_price / price_3y_ago) ** (1/3) - 1) * 100
             except:
-                earnings_cagr = None
+                price_3y_cagr = None
+            
+            # Calculate 5-year price change
+            price_5y_change = None
+            try:
+                hist_5y = etf.history(period="5y")
+                if not hist_5y.empty and len(hist_5y) > 252 * 4:  # At least 4 years of data
+                    price_5y_ago = hist_5y['Close'].iloc[0]
+                    if price_5y_ago and current_price:
+                        price_5y_change = ((current_price - price_5y_ago) / price_5y_ago) * 100
+            except:
+                price_5y_change = None
 
             # Strategy
             thesis = info.get("longBusinessSummary")
+            
+            # Create short strategy summary (first sentence or up to 100 chars)
+            strategy_summary = None
+            if thesis:
+                # Take first sentence or first 100 characters, whichever is shorter
+                first_sentence = thesis.split('.')[0] + '.' if '.' in thesis else thesis
+                strategy_summary = first_sentence[:100] + '...' if len(first_sentence) > 100 else first_sentence
 
             # Build record with all new data
             record = {
                 "Ticker": symbol,
                 "Name": name,
+                "ISIN": isin,
                 "Currency": currency,
+                "Exchange": exchange,
                 "PE": pe,
                 "Expense Ratio": expense_ratio,
                 "Category": category,
@@ -874,10 +1063,14 @@ def analyze_etfs(tickers):
                 "Nav Price": nav_price,
                 "Price 12 Months Ago": price_12m_ago,
                 "Strategy": thesis,
-                # New aggregate metrics
+                "Strategy Summary": strategy_summary,
+                # Price performance metrics
+                "1Y Price Change (%)": price_1y_change,
+                "3Y Price CAGR (%)": price_3y_cagr,
+                "5Y Price Change (%)": price_5y_change,
+                # Aggregate metrics
                 "Aggregate PE": aggregate_pe,
                 "Aggregate Dividend Yield (%)": aggregate_div_yield,
-                "3Y Price CAGR (%)": earnings_cagr,
                 # Holdings data
                 "Holdings Data": holdings_data,
                 "Top Holdings Count": len(holdings_data)
