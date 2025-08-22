@@ -898,7 +898,13 @@ def analyze_etfs(tickers):
             managing_company = info.get("fundFamily")
             nav_price = info.get("navPrice")
             exchange = info.get("exchange", info.get("fullExchangeName", "N/A"))
-            isin = info.get("isin", "N/A")
+            
+            # Get ISIN as direct property
+            try:
+                isin = etf.isin if hasattr(etf, 'isin') else "N/A"
+            except Exception as e:
+                print(f"DEBUG: Could not get ISIN for {symbol}: {e}")
+                isin = "N/A"
             
             # Dividend yield with fallback options
             div_yield = info.get('dividendYield')
