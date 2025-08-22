@@ -148,11 +148,17 @@ def create_price_evolution_chart(etfs_data, period="1y", target_currency="USD", 
                 
                 close_return = ((close_end - close_start) / close_start) * 100
                 adj_close_return = ((adj_close_end - adj_close_start) / adj_close_start) * 100
+                dividend_impact = adj_close_return - close_return
                 
-                print(f"DEBUG DIVIDEND ANALYSIS - {ticker}:")
-                print(f"  Close Return: {close_return:.2f}%")
-                print(f"  Adj Close Return: {adj_close_return:.2f}%")
-                print(f"  Difference: {adj_close_return - close_return:.2f}% (dividend impact)")
+                # Store debug info for display (visible to user)
+                if not hasattr(st.session_state, 'dividend_debug'):
+                    st.session_state.dividend_debug = []
+                st.session_state.dividend_debug.append({
+                    'ticker': ticker,
+                    'close_return': close_return,
+                    'adj_close_return': adj_close_return,
+                    'dividend_impact': dividend_impact
+                })
             
             # Convert prices if needed
             prices = hist['Close']
@@ -633,6 +639,32 @@ def main():
             # Display cached chart
             if 'price_chart' in st.session_state:
                 st.plotly_chart(st.session_state['price_chart'], use_container_width=True)
+                
+            # Display dividend analysis debug info
+            if hasattr(st.session_state, 'dividend_debug') and st.session_state.dividend_debug:
+                with st.expander("🔍 Dividend Analysis Debug Info", expanded=False):
+                    st.markdown("**Comparing Close vs Adjusted Close Returns:**")
+                    debug_data = []
+                    for item in st.session_state.dividend_debug:
+                        debug_data.append({
+                            'Ticker': item['ticker'],
+                            'Close Return': f"{item['close_return']:+.2f}%",
+                            'Adj Close Return': f"{item['adj_close_return']:+.2f}%",
+                            'Dividend Impact': f"{item['dividend_impact']:+.2f}%"
+                        })
+                    
+                    df_debug = pd.DataFrame(debug_data)
+                    st.dataframe(df_debug, use_container_width=True, hide_index=True)
+                    
+                    # Analysis
+                    max_impact = max([abs(item['dividend_impact']) for item in st.session_state.dividend_debug])
+                    if max_impact > 1.0:
+                        st.warning(f"⚠️ Significant dividend impact detected (up to {max_impact:.2f}%). Consider adding total return chart.")
+                    else:
+                        st.info(f"ℹ️ Minimal dividend impact ({max_impact:.2f}%). Current price chart is representative.")
+                
+                # Clear debug data after displaying
+                st.session_state.dividend_debug = []
             
             # Divider before existing performance metrics
             st.markdown("---")
