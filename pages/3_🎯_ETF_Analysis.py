@@ -150,38 +150,14 @@ def create_price_evolution_chart(etfs_data, period="1y", target_currency="USD", 
                 adj_close_return = ((adj_close_end - adj_close_start) / adj_close_start) * 100
                 dividend_impact = adj_close_return - close_return
                 
-                # Enhanced debug: Check if Close == Adj Close (data quality issue)
-                close_adj_identical = abs(close_start - adj_close_start) < 0.01 and abs(close_end - adj_close_end) < 0.01
-                
-                # Try to get dividend data for manual calculation
-                dividends_total = 0
-                try:
-                    dividends = stock.dividends
-                    if not dividends.empty:
-                        # Get dividends for the same period as price history
-                        period_dividends = dividends[dividends.index >= hist.index[0]]
-                        dividends_total = period_dividends.sum()
-                except:
-                    dividends_total = 0
-                
-                # Calculate manual total return if we have dividend data
-                manual_total_return = None
-                if dividends_total > 0 and close_start > 0:
-                    # Approximate total return: price return + dividend yield
-                    dividend_yield_approx = (dividends_total / close_start) * 100
-                    manual_total_return = close_return + dividend_yield_approx
-                
-                # Store enhanced debug info
+                # Store debug info for display (visible to user)
                 if not hasattr(st.session_state, 'dividend_debug'):
                     st.session_state.dividend_debug = []
                 st.session_state.dividend_debug.append({
                     'ticker': ticker,
                     'close_return': close_return,
                     'adj_close_return': adj_close_return,
-                    'dividend_impact': dividend_impact,
-                    'close_adj_identical': close_adj_identical,
-                    'dividends_total': dividends_total,
-                    'manual_total_return': manual_total_return
+                    'dividend_impact': dividend_impact
                 })
             
             # Convert prices if needed
@@ -666,48 +642,26 @@ def main():
                 
             # Display dividend analysis debug info
             if hasattr(st.session_state, 'dividend_debug') and st.session_state.dividend_debug:
-                with st.expander("🔍 Enhanced Dividend Analysis Debug", expanded=True):
-                    st.markdown("**Data Quality Investigation:**")
+                with st.expander("🔍 Dividend Analysis Debug Info", expanded=False):
+                    st.markdown("**Comparing Close vs Adjusted Close Returns:**")
                     debug_data = []
-                    data_issues = []
-                    
                     for item in st.session_state.dividend_debug:
                         debug_data.append({
                             'Ticker': item['ticker'],
                             'Close Return': f"{item['close_return']:+.2f}%",
                             'Adj Close Return': f"{item['adj_close_return']:+.2f}%",
-                            'Dividend Impact': f"{item['dividend_impact']:+.2f}%",
-                            'Close=AdjClose?': "Yes ⚠️" if item['close_adj_identical'] else "No ✅",
-                            'Dividends Found': f"${item['dividends_total']:.3f}" if item['dividends_total'] > 0 else "None",
-                            'Manual Total Return': f"{item['manual_total_return']:+.2f}%" if item['manual_total_return'] else "N/A"
+                            'Dividend Impact': f"{item['dividend_impact']:+.2f}%"
                         })
-                        
-                        if item['close_adj_identical']:
-                            data_issues.append(item['ticker'])
                     
                     df_debug = pd.DataFrame(debug_data)
                     st.dataframe(df_debug, use_container_width=True, hide_index=True)
                     
-                    # Enhanced Analysis
-                    if data_issues:
-                        st.error(f"🚨 **Data Quality Issues Detected**: {', '.join(data_issues)}")
-                        st.markdown("""
-                        **Problem**: `Close` and `Adj Close` prices are identical, suggesting yfinance 
-                        doesn't have proper dividend-adjusted data for these ETFs.
-                        
-                        **Solution**: We need to implement manual total return calculation using dividend history.
-                        """)
-                    
+                    # Analysis
                     max_impact = max([abs(item['dividend_impact']) for item in st.session_state.dividend_debug])
-                    manual_returns = [item for item in st.session_state.dividend_debug if item['manual_total_return']]
-                    
-                    if manual_returns:
-                        st.success("✅ **Dividend data found** - Can implement proper total return calculation")
-                        st.markdown("**Recommendation**: Add total return chart using manual dividend calculation")
-                    elif max_impact > 1.0:
-                        st.warning(f"⚠️ Significant dividend impact detected (up to {max_impact:.2f}%)")
+                    if max_impact > 1.0:
+                        st.warning(f"⚠️ Significant dividend impact detected (up to {max_impact:.2f}%). Consider adding total return chart.")
                     else:
-                        st.info("ℹ️ Using Close prices only - may miss dividend impact for distributing ETFs")
+                        st.info(f"ℹ️ Minimal dividend impact ({max_impact:.2f}%). Current price chart is representative.")
                 
                 # Clear debug data after displaying
                 st.session_state.dividend_debug = []
