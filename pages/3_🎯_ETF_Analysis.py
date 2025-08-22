@@ -139,6 +139,21 @@ def create_price_evolution_chart(etfs_data, period="1y", target_currency="USD", 
             if hist.empty:
                 continue
             
+            # Debug: Compare Close vs Adj Close to understand dividend treatment
+            if not hist.empty and len(hist) > 10:  # Only for meaningful data
+                close_start = hist['Close'].iloc[0]
+                close_end = hist['Close'].iloc[-1]
+                adj_close_start = hist['Adj Close'].iloc[0] if 'Adj Close' in hist.columns else close_start
+                adj_close_end = hist['Adj Close'].iloc[-1] if 'Adj Close' in hist.columns else close_end
+                
+                close_return = ((close_end - close_start) / close_start) * 100
+                adj_close_return = ((adj_close_end - adj_close_start) / adj_close_start) * 100
+                
+                print(f"DEBUG DIVIDEND ANALYSIS - {ticker}:")
+                print(f"  Close Return: {close_return:.2f}%")
+                print(f"  Adj Close Return: {adj_close_return:.2f}%")
+                print(f"  Difference: {adj_close_return - close_return:.2f}% (dividend impact)")
+            
             # Convert prices if needed
             prices = hist['Close']
             if currency != target_currency:
