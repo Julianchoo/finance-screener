@@ -395,8 +395,16 @@ def main():
         
         for filter_tuple in filters:
             operator = filter_tuple[0]
-            field = filter_tuple[1]
-            values = filter_tuple[2:]
+            
+            # Handle EquityQuery format: ('gt', ['field', value]) vs old format: ('gt', 'field', value)
+            if isinstance(filter_tuple[1], list):
+                # EquityQuery format
+                field = filter_tuple[1][0]
+                values = filter_tuple[1][1:]
+            else:
+                # Old format
+                field = filter_tuple[1]
+                values = filter_tuple[2:]
             
             field_config = ALL_SCREENING_FIELDS.get(field, {})
             display_name = field_config.get('display_name', field)

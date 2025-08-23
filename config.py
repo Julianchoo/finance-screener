@@ -164,21 +164,21 @@ PERFORMANCE_THRESHOLDS = {
 # Essential screening fields (most commonly used)
 ESSENTIAL_SCREENING_FIELDS = {
     # Trading & Market Data
-    'marketcap': {
+    'intradaymarketcap': {
         'display_name': 'Market Cap',
         'category': 'Market Data',
         'data_type': 'numeric',
         'format': 'billions',
         'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
     },
-    'volume': {
-        'display_name': 'Volume',
+    'avgdailyvol3m': {
+        'display_name': 'Average Volume (3M)',
         'category': 'Market Data', 
         'data_type': 'numeric',
         'format': 'number',
         'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
     },
-    'price': {
+    'intradayprice': {
         'display_name': 'Stock Price',
         'category': 'Market Data',
         'data_type': 'numeric',
@@ -187,7 +187,7 @@ ESSENTIAL_SCREENING_FIELDS = {
     },
     
     # Valuation Metrics
-    'trailingpe': {
+    'peratio.lasttwelvemonths': {
         'display_name': 'P/E Ratio (Trailing)',
         'category': 'Valuation',
         'data_type': 'numeric',
@@ -201,14 +201,14 @@ ESSENTIAL_SCREENING_FIELDS = {
         'format': 'ratio',
         'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
     },
-    'pegratio': {
-        'display_name': 'PEG Ratio',
+    'pegratio_5y': {
+        'display_name': 'PEG Ratio (5Y)',
         'category': 'Valuation',
         'data_type': 'numeric',
         'format': 'ratio',
         'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
     },
-    'pricetobook': {
+    'pricebookratio.quarterly': {
         'display_name': 'Price-to-Book',
         'category': 'Valuation',
         'data_type': 'numeric',
@@ -217,22 +217,22 @@ ESSENTIAL_SCREENING_FIELDS = {
     },
     
     # Profitability & Growth
-    'trailingeps': {
-        'display_name': 'EPS (Trailing)',
+    'dilutedepscontinuingoperations.lasttwelvemonths': {
+        'display_name': 'EPS (Diluted, Continuing Ops)',
         'category': 'Profitability',
         'data_type': 'numeric',
         'format': 'currency',
         'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
     },
-    'revenuegrowth': {
-        'display_name': 'Revenue Growth',
+    'totalrevenues1yrgrowth.lasttwelvemonths': {
+        'display_name': 'Revenue Growth (1Y)',
         'category': 'Growth',
         'data_type': 'numeric',
         'format': 'percentage',
         'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
     },
-    'earningsgrowth': {
-        'display_name': 'Earnings Growth',
+    'dilutedeps1yrgrowth.lasttwelvemonths': {
+        'display_name': 'Earnings Growth (1Y)',
         'category': 'Growth', 
         'data_type': 'numeric',
         'format': 'percentage',
@@ -240,8 +240,8 @@ ESSENTIAL_SCREENING_FIELDS = {
     },
     
     # Dividend Metrics
-    'dividendyield': {
-        'display_name': 'Dividend Yield',
+    'forward_dividend_yield': {
+        'display_name': 'Forward Dividend Yield',
         'category': 'Dividend',
         'data_type': 'numeric',
         'format': 'percentage',
@@ -254,6 +254,13 @@ ESSENTIAL_SCREENING_FIELDS = {
         'format': 'percentage',
         'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
     },
+    'consecutive_years_of_dividend_growth_count': {
+        'display_name': 'Consecutive Years of Dividend Growth',
+        'category': 'Dividend',
+        'data_type': 'numeric',
+        'format': 'number',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
     
     # Financial Health
     'debttoequity': {
@@ -263,8 +270,15 @@ ESSENTIAL_SCREENING_FIELDS = {
         'format': 'ratio',
         'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
     },
-    'returnonequity': {
-        'display_name': 'ROE',
+    'totaldebtequity.lasttwelvemonths': {
+        'display_name': 'Total Debt to Equity (TTM)',
+        'category': 'Financial Health',
+        'data_type': 'numeric',
+        'format': 'ratio',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'returnonequity.lasttwelvemonths': {
+        'display_name': 'Return on Equity (TTM)',
         'category': 'Financial Health',
         'data_type': 'numeric',
         'format': 'percentage',
@@ -432,33 +446,33 @@ PREDEFINED_SCREENS = {
     'Large Cap Value': {
         'description': 'Large companies with attractive valuations',
         'query_conditions': [
-            ('gt', ['marketcap', 10000000000]),  # > $10B market cap
-            ('lt', ['trailingpe', 15]),  # PE < 15
-            ('gt', ['dividendyield', 2])  # Dividend yield > 2%
+            ('gt', ['intradaymarketcap', 10000000000]),  # > $10B market cap
+            ('lt', ['peratio.lasttwelvemonths', 15]),  # PE < 15
+            ('gt', ['forward_dividend_yield', 2])  # Dividend yield > 2%
         ]
     },
     'High Growth': {
         'description': 'Companies with strong growth metrics',
         'query_conditions': [
-            ('gt', ['revenuegrowth', 15]),  # Revenue growth > 15%
-            ('gt', ['earningsgrowth', 20]),  # Earnings growth > 20%
-            ('lt', ['pegratio', 2])  # PEG ratio < 2
+            ('gt', ['totalrevenues1yrgrowth.lasttwelvemonths', 15]),  # Revenue growth > 15%
+            ('gt', ['dilutedeps1yrgrowth.lasttwelvemonths', 20]),  # Earnings growth > 20%
+            ('lt', ['pegratio_5y', 2])  # PEG ratio < 2
         ]
     },
     'Dividend Aristocrats': {
         'description': 'High-quality dividend paying stocks',
         'query_conditions': [
-            ('gt', ['dividendyield', 3]),  # Dividend yield > 3%
-            ('lt', ['payoutratio', 0.8]),  # Payout ratio < 80%
-            ('gt', ['marketcap', 5000000000])  # Market cap > $5B
+            ('gt', ['forward_dividend_yield', 3]),  # Dividend yield > 3%
+            ('gt', ['consecutive_years_of_dividend_growth_count', 10]),  # 10+ years of dividend growth
+            ('gt', ['intradaymarketcap', 5000000000])  # Market cap > $5B
         ]
     },
     'Quality Small Caps': {
         'description': 'Well-managed smaller companies',
         'query_conditions': [
-            ('btwn', ['marketcap', 1000000000, 10000000000]),  # Market cap $1B - $10B
-            ('gt', ['returnonequity', 15]),  # ROE > 15%
-            ('lt', ['debttoequity', 0.5])  # Debt/Equity < 0.5
+            ('btwn', ['intradaymarketcap', 1000000000, 10000000000]),  # Market cap $1B - $10B
+            ('gt', ['returnonequity.lasttwelvemonths', 15]),  # ROE > 15%
+            ('lt', ['totaldebtequity.lasttwelvemonths', 0.5])  # Debt/Equity < 0.5
         ]
     }
 }
