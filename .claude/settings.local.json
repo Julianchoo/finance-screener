@@ -9,7 +9,9 @@
       "Bash(git commit:*)",
       "mcp__playwright__browser_navigate",
       "mcp__playwright__browser_wait_for",
-      "mcp__playwright__browser_click"
+      "mcp__playwright__browser_click",
+      "WebFetch(domain:ranaroussi.github.io)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

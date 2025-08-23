@@ -191,12 +191,24 @@ def display_results_table(df, max_rows=100):
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        try:
-            sort_options = [col for col in df.columns if df[col].dtype.name in ['float64', 'int64']]
-        except:
-            sort_options = list(df.select_dtypes(include=['float64', 'int64']).columns)
+        # Get numeric columns for sorting - simplified approach
+        sort_options = []
+        for col in df.columns:
+            try:
+                if pd.api.types.is_numeric_dtype(df[col]):
+                    sort_options.append(col)
+            except:
+                continue
+        
+        if not sort_options:
+            # Fallback to common numeric column names
+            common_numeric = ['intradaymarketcap', 'peratio.lasttwelvemonths', 'forward_dividend_yield', 'percentchange', 'volume']
+            sort_options = [col for col in common_numeric if col in df.columns]
+        
         if sort_options:
             sort_by = st.selectbox("Sort by:", sort_options, index=0)
+        else:
+            sort_by = None
     
     with col2:
         sort_order = st.selectbox("Order:", ["Descending", "Ascending"], index=0)
@@ -216,14 +228,17 @@ def display_results_table(df, max_rows=100):
     
     # Format currency columns
     for col in display_df.columns:
-        if 'Price' in col and display_df[col].dtype in ['float64', 'int64']:
-            display_df[col] = display_df[col].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "N/A")
-        elif 'Billion' in col and display_df[col].dtype in ['float64', 'int64']:
-            display_df[col] = display_df[col].apply(lambda x: f"${x:.2f}B" if pd.notna(x) else "N/A")
-        elif 'Yield' in col or '%' in col and display_df[col].dtype in ['float64', 'int64']:
-            display_df[col] = display_df[col].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A")
-        elif col in ['PE Ratio', 'EPS', 'Debt to Equity'] and display_df[col].dtype in ['float64', 'int64']:
-            display_df[col] = display_df[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "N/A")
+        try:
+            if 'Price' in col and pd.api.types.is_numeric_dtype(display_df[col]):
+                display_df[col] = display_df[col].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "N/A")
+            elif 'Billion' in col and pd.api.types.is_numeric_dtype(display_df[col]):
+                display_df[col] = display_df[col].apply(lambda x: f"${x:.2f}B" if pd.notna(x) else "N/A")
+            elif ('Yield' in col or '%' in col) and pd.api.types.is_numeric_dtype(display_df[col]):
+                display_df[col] = display_df[col].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A")
+            elif col in ['PE Ratio', 'EPS', 'Debt to Equity'] and pd.api.types.is_numeric_dtype(display_df[col]):
+                display_df[col] = display_df[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "N/A")
+        except:
+            continue
     
     # Display the table
     st.dataframe(

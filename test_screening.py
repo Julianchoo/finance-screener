@@ -16,9 +16,9 @@ def test_field_validation():
     
     # Valid filters in EquityQuery format
     valid_filters = [
-        ('gt', ['marketcap', 10000000000]),  # Market cap > $10B
-        ('lt', ['trailingpe', 15]), # PE < 15
-        ('btwn', ['dividendyield', 2, 8])  # Div yield between 2-8%
+        ('gt', ['intradaymarketcap', 10000000000]),  # Market cap > $10B
+        ('lt', ['peratio.lasttwelvemonths', 15]), # PE < 15
+        ('btwn', ['forward_dividend_yield', 2, 8])  # Div yield between 2-8%
     ]
     
     is_valid, error = validate_screening_filters(valid_filters)
@@ -37,8 +37,8 @@ def test_query_building():
     print("\nTesting query building...")
     
     filters = [
-        ('gt', ['marketcap', 5000000000]),   # Market cap > $5B
-        ('lt', ['trailingpe', 20])  # PE < 20
+        ('gt', ['intradaymarketcap', 5000000000]),   # Market cap > $5B
+        ('lt', ['peratio.lasttwelvemonths', 20])  # PE < 20
     ]
     
     try:
@@ -67,12 +67,12 @@ def test_basic_screening():
     
     try:
         # Test with a simple filter
-        filters = [('gt', ['marketcap', 10000000000])]  # Market cap > $10B
+        filters = [('gt', ['intradaymarketcap', 10000000000])]  # Market cap > $10B
         
         results = advanced_screen_stocks(
             filters=filters,
             count=10,  # Just get 10 results for testing
-            sort_field='marketcap',
+            sort_field='intradaymarketcap',
             sort_asc=False
         )
         
