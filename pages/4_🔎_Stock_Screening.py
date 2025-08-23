@@ -226,6 +226,12 @@ def display_results_table(df, max_rows=100):
     # Format numeric columns for display
     display_df = df_display.copy()
     
+    # Handle duplicate column names
+    if len(display_df.columns) != len(set(display_df.columns)):
+        st.warning("⚠️ Duplicate column names detected. Removing duplicates...")
+        # Get unique column names by keeping first occurrence
+        display_df = display_df.loc[:, ~display_df.columns.duplicated(keep='first')]
+    
     # Format currency columns
     for col in display_df.columns:
         try:
