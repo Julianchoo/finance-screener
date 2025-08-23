@@ -156,3 +156,309 @@ PERFORMANCE_THRESHOLDS = {
     'HIGH_MARGIN': 15,
     'LOW_MARGIN': 5
 }
+
+# =====================================================
+# STOCK SCREENER FIELD CONFIGURATION
+# =====================================================
+
+# Essential screening fields (most commonly used)
+ESSENTIAL_SCREENING_FIELDS = {
+    # Trading & Market Data
+    'marketcap': {
+        'display_name': 'Market Cap',
+        'category': 'Market Data',
+        'data_type': 'numeric',
+        'format': 'billions',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'volume': {
+        'display_name': 'Volume',
+        'category': 'Market Data', 
+        'data_type': 'numeric',
+        'format': 'number',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'price': {
+        'display_name': 'Stock Price',
+        'category': 'Market Data',
+        'data_type': 'numeric',
+        'format': 'currency',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    
+    # Valuation Metrics
+    'trailingpe': {
+        'display_name': 'P/E Ratio (Trailing)',
+        'category': 'Valuation',
+        'data_type': 'numeric',
+        'format': 'ratio',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'forwardpe': {
+        'display_name': 'P/E Ratio (Forward)',
+        'category': 'Valuation',
+        'data_type': 'numeric',
+        'format': 'ratio',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'pegratio': {
+        'display_name': 'PEG Ratio',
+        'category': 'Valuation',
+        'data_type': 'numeric',
+        'format': 'ratio',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'pricetobook': {
+        'display_name': 'Price-to-Book',
+        'category': 'Valuation',
+        'data_type': 'numeric',
+        'format': 'ratio',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    
+    # Profitability & Growth
+    'trailingeps': {
+        'display_name': 'EPS (Trailing)',
+        'category': 'Profitability',
+        'data_type': 'numeric',
+        'format': 'currency',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'revenuegrowth': {
+        'display_name': 'Revenue Growth',
+        'category': 'Growth',
+        'data_type': 'numeric',
+        'format': 'percentage',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'earningsgrowth': {
+        'display_name': 'Earnings Growth',
+        'category': 'Growth', 
+        'data_type': 'numeric',
+        'format': 'percentage',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    
+    # Dividend Metrics
+    'dividendyield': {
+        'display_name': 'Dividend Yield',
+        'category': 'Dividend',
+        'data_type': 'numeric',
+        'format': 'percentage',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'payoutratio': {
+        'display_name': 'Payout Ratio',
+        'category': 'Dividend',
+        'data_type': 'numeric',
+        'format': 'percentage',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    
+    # Financial Health
+    'debttoequity': {
+        'display_name': 'Debt-to-Equity',
+        'category': 'Financial Health',
+        'data_type': 'numeric',
+        'format': 'ratio',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'returnonequity': {
+        'display_name': 'ROE',
+        'category': 'Financial Health',
+        'data_type': 'numeric',
+        'format': 'percentage',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    
+    # Geographic/Exchange Filters
+    'exchange': {
+        'display_name': 'Exchange',
+        'category': 'Geographic',
+        'data_type': 'categorical',
+        'comparison_ops': ['eq', 'is-in']
+    },
+    'sector': {
+        'display_name': 'Sector',
+        'category': 'Geographic',
+        'data_type': 'categorical', 
+        'comparison_ops': ['eq', 'is-in']
+    }
+}
+
+# Advanced screening fields (accessible via expansion)
+ADVANCED_SCREENING_FIELDS = {
+    # Additional Valuation
+    'pricetosales': {
+        'display_name': 'Price-to-Sales',
+        'category': 'Valuation',
+        'data_type': 'numeric',
+        'format': 'ratio',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'enterprisevalue': {
+        'display_name': 'Enterprise Value',
+        'category': 'Valuation',
+        'data_type': 'numeric',
+        'format': 'billions',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'evebitda': {
+        'display_name': 'EV/EBITDA',
+        'category': 'Valuation',
+        'data_type': 'numeric',
+        'format': 'ratio',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    
+    # Profitability Margins
+    'grossmargins': {
+        'display_name': 'Gross Margin',
+        'category': 'Profitability',
+        'data_type': 'numeric',
+        'format': 'percentage',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'operatingmargins': {
+        'display_name': 'Operating Margin',
+        'category': 'Profitability',
+        'data_type': 'numeric',
+        'format': 'percentage',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'ebitdamargins': {
+        'display_name': 'EBITDA Margin',
+        'category': 'Profitability',
+        'data_type': 'numeric',
+        'format': 'percentage',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'profitmargins': {
+        'display_name': 'Net Profit Margin',
+        'category': 'Profitability',
+        'data_type': 'numeric',
+        'format': 'percentage',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    
+    # Financial Health
+    'currentratio': {
+        'display_name': 'Current Ratio',
+        'category': 'Financial Health',
+        'data_type': 'numeric',
+        'format': 'ratio',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'quickratio': {
+        'display_name': 'Quick Ratio',
+        'category': 'Financial Health',
+        'data_type': 'numeric',
+        'format': 'ratio',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'returnonassets': {
+        'display_name': 'ROA',
+        'category': 'Financial Health',
+        'data_type': 'numeric',
+        'format': 'percentage',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    
+    # Technical Indicators
+    'beta': {
+        'display_name': 'Beta',
+        'category': 'Technical',
+        'data_type': 'numeric',
+        'format': 'ratio',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'movingaverage50': {
+        'display_name': '50-Day MA',
+        'category': 'Technical',
+        'data_type': 'numeric',
+        'format': 'currency',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'movingaverage200': {
+        'display_name': '200-Day MA',
+        'category': 'Technical',
+        'data_type': 'numeric',
+        'format': 'currency',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    
+    # ESG & Quality
+    'totaleslriskscore': {
+        'display_name': 'ESG Risk Score',
+        'category': 'ESG',
+        'data_type': 'numeric',
+        'format': 'score',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    
+    # Additional Geographic
+    'country': {
+        'display_name': 'Country',
+        'category': 'Geographic',
+        'data_type': 'categorical',
+        'comparison_ops': ['eq', 'is-in']
+    },
+    'region': {
+        'display_name': 'Region',
+        'category': 'Geographic', 
+        'data_type': 'categorical',
+        'comparison_ops': ['eq', 'is-in']
+    }
+}
+
+# Combine all screening fields
+ALL_SCREENING_FIELDS = {**ESSENTIAL_SCREENING_FIELDS, **ADVANCED_SCREENING_FIELDS}
+
+# Field categories for UI organization
+SCREENING_CATEGORIES = {
+    'Market Data': 'Basic market metrics like price, volume, market cap',
+    'Valuation': 'Price-based ratios and valuation metrics',
+    'Profitability': 'Earnings and margin metrics',
+    'Growth': 'Growth rates for revenue, earnings, etc.',
+    'Dividend': 'Dividend-related metrics',
+    'Financial Health': 'Balance sheet strength indicators', 
+    'Technical': 'Technical analysis indicators',
+    'ESG': 'Environmental, Social, Governance scores',
+    'Geographic': 'Location and exchange-based filters'
+}
+
+# Default screen queries for quick access
+PREDEFINED_SCREENS = {
+    'Large Cap Value': {
+        'description': 'Large companies with attractive valuations',
+        'query_conditions': [
+            ('gt', ['marketcap', 10000000000]),  # > $10B market cap
+            ('lt', ['trailingpe', 15]),  # PE < 15
+            ('gt', ['dividendyield', 2])  # Dividend yield > 2%
+        ]
+    },
+    'High Growth': {
+        'description': 'Companies with strong growth metrics',
+        'query_conditions': [
+            ('gt', ['revenuegrowth', 15]),  # Revenue growth > 15%
+            ('gt', ['earningsgrowth', 20]),  # Earnings growth > 20%
+            ('lt', ['pegratio', 2])  # PEG ratio < 2
+        ]
+    },
+    'Dividend Aristocrats': {
+        'description': 'High-quality dividend paying stocks',
+        'query_conditions': [
+            ('gt', ['dividendyield', 3]),  # Dividend yield > 3%
+            ('lt', ['payoutratio', 0.8]),  # Payout ratio < 80%
+            ('gt', ['marketcap', 5000000000])  # Market cap > $5B
+        ]
+    },
+    'Quality Small Caps': {
+        'description': 'Well-managed smaller companies',
+        'query_conditions': [
+            ('btwn', ['marketcap', 1000000000, 10000000000]),  # Market cap $1B - $10B
+            ('gt', ['returnonequity', 15]),  # ROE > 15%
+            ('lt', ['debttoequity', 0.5])  # Debt/Equity < 0.5
+        ]
+    }
+}

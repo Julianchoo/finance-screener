@@ -1211,3 +1211,250 @@ def screen_stocks(tickers, years=[2024, 2023, 2022, 2021, 2020]):
         df = df.sort_values('Market Cap (Billion $)', ascending=False)
 
     return df
+
+# =====================================================
+# ADVANCED STOCK SCREENING FUNCTIONS (YFINANCE EQUITYQUERY)
+# =====================================================
+
+def build_equity_query(filters):
+    """
+    Build an EquityQuery object from a list of filters.
+    
+    Args:
+        filters (list): List of tuples (operator, [field, value(s)])
+                      e.g., [('gt', ['marketcap', 10]), ('lt', ['trailingpe', 15])]
+    
+    Returns:
+        EquityQuery: Constructed query object
+    """
+    from yfinance import EquityQuery
+    
+    if not filters:
+        return None
+    
+    if len(filters) == 1:
+        op, field_and_values = filters[0][0], filters[0][1]
+        return EquityQuery(op, field_and_values)
+    
+    # Multiple filters - combine with AND
+    query_objects = []
+    for filter_tuple in filters:
+        op, field_and_values = filter_tuple[0], filter_tuple[1]
+        query_objects.append(EquityQuery(op, field_and_values))
+    
+    return EquityQuery('and', query_objects)
+
+def advanced_screen_stocks(filters=None, predefined_screen=None, count=100, sort_field='marketcap', sort_asc=False):
+    """
+    Advanced stock screening using yfinance EquityQuery.
+    Screens all available stocks, not just predefined lists.
+    
+    Args:
+        filters (list): List of filter tuples (operator, field, value(s))
+        predefined_screen (str): Name of predefined screen from config
+        count (int): Maximum number of results to return (max 250)
+        sort_field (str): Field to sort results by
+        sort_asc (bool): Sort ascending if True, descending if False
+    
+    Returns:
+        pandas.DataFrame: Screening results with comprehensive stock data
+    """
+    import yfinance as yf
+    from yfinance import EquityQuery
+    
+    try:
+        # Handle predefined screens
+        if predefined_screen:
+            from config import PREDEFINED_SCREENS
+            if predefined_screen in PREDEFINED_SCREENS:
+                screen_config = PREDEFINED_SCREENS[predefined_screen]
+                filters = screen_config['query_conditions']
+        
+        # Build query
+        if filters:
+            query = build_equity_query(filters)
+        else:
+            # No filters - get top stocks by market cap
+            query = EquityQuery('gt', ['marketcap', 1])  # Market cap > $1B
+        
+        # Execute screen
+        response = yf.screen(query, count=min(count, 250), sortField=sort_field, sortAsc=sort_asc)
+        
+        if not response or 'quotes' not in response:
+            return pd.DataFrame()
+        
+        # Extract quotes data
+        quotes = response['quotes']
+        
+        if not quotes:
+            return pd.DataFrame()
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(quotes)
+        
+        # Clean and format the data
+        df = format_screening_results(df)
+        
+        return df
+        
+    except Exception as e:
+        print(f"Error in advanced stock screening: {e}")
+        return pd.DataFrame()
+
+def format_screening_results(df):
+    """
+    Format and clean screening results from yfinance.
+    
+    Args:
+        df (pandas.DataFrame): Raw screening results
+    
+    Returns:
+        pandas.DataFrame: Formatted screening results
+    """
+    if df.empty:
+        return df
+    
+    # Create a clean copy
+    formatted_df = df.copy()
+    
+    # Rename common columns to match existing format
+    column_mapping = {
+        'symbol': 'Symbol',
+        'shortName': 'Company', 
+        'longName': 'Company',
+        'regularMarketPrice': 'Price',
+        'marketCap': 'Market Cap',
+        'trailingPE': 'PE Ratio',
+        'trailingEps': 'EPS',
+        'dividendYield': 'Dividend Yield (%)',
+        'dividendRate': 'Dividend Rate',
+        'debtToEquity': 'Debt to Equity',
+        'exchange': 'Exchange',
+        'currency': 'Currency',
+        'volume': 'Volume',
+        'sector': 'Sector',
+        'industry': 'Industry'
+    }
+    
+    # Apply column mapping
+    for old_name, new_name in column_mapping.items():
+        if old_name in formatted_df.columns:
+            formatted_df = formatted_df.rename(columns={old_name: new_name})
+    
+    # Convert market cap to billions
+    if 'Market Cap' in formatted_df.columns:
+        formatted_df['Market Cap (Billion $)'] = formatted_df['Market Cap'] / 1e9
+        formatted_df = formatted_df.drop('Market Cap', axis=1)
+    
+    # Convert dividend yield to percentage
+    if 'Dividend Yield (%)' in formatted_df.columns:
+        formatted_df['Dividend Yield (%)'] = formatted_df['Dividend Yield (%)'] * 100
+    
+    # Fill missing company names with symbol
+    if 'Company' in formatted_df.columns and 'Symbol' in formatted_df.columns:
+        formatted_df['Company'] = formatted_df['Company'].fillna(formatted_df['Symbol'])
+    
+    # Round numeric columns
+    numeric_columns = formatted_df.select_dtypes(include=[np.number]).columns
+    for col in numeric_columns:
+        if col in ['PE Ratio', 'EPS', 'Dividend Rate', 'Debt to Equity']:
+            formatted_df[col] = formatted_df[col].round(2)
+        elif 'Billion' in col:
+            formatted_df[col] = formatted_df[col].round(2)
+        elif 'Yield' in col or '%' in col:
+            formatted_df[col] = formatted_df[col].round(2)
+    
+    return formatted_df
+
+def get_field_options(field_name):
+    """
+    Get available options for categorical fields (like sector, exchange).
+    
+    Args:
+        field_name (str): Name of the field (e.g., 'sector', 'exchange')
+    
+    Returns:
+        list: Available options for the field
+    """
+    # Common field options - these could be expanded by querying yfinance
+    field_options = {
+        'sector': [
+            'Technology', 'Healthcare', 'Financial Services', 'Consumer Cyclical',
+            'Communication Services', 'Industrials', 'Consumer Defensive', 'Energy',
+            'Utilities', 'Real Estate', 'Basic Materials'
+        ],
+        'exchange': [
+            'NMS', 'NYQ', 'NCM', 'LSE', 'TSE', 'FRA', 'PAR', 'MIL', 'AMS', 'SWX'
+        ],
+        'country': [
+            'United States', 'United Kingdom', 'Germany', 'France', 'Japan',
+            'Canada', 'Switzerland', 'Netherlands', 'Italy', 'Spain'
+        ],
+        'region': [
+            'us', 'europe', 'asia', 'north-america', 'developed-markets', 'emerging-markets'
+        ]
+    }
+    
+    return field_options.get(field_name, [])
+
+def validate_screening_filters(filters):
+    """
+    Validate screening filters before building query.
+    Handles both formats: ('gt', 'field', value) and ('gt', ['field', value])
+    
+    Args:
+        filters (list): List of filter tuples
+    
+    Returns:
+        tuple: (is_valid, error_message)
+    """
+    from config import ALL_SCREENING_FIELDS
+    
+    if not filters:
+        return True, None
+    
+    for filter_tuple in filters:
+        if len(filter_tuple) < 2:
+            return False, f"Invalid filter format: {filter_tuple}"
+        
+        operator = filter_tuple[0]
+        
+        # Handle both formats: ('gt', 'field', value) and ('gt', ['field', value])
+        if isinstance(filter_tuple[1], list):
+            # EquityQuery format: ('gt', ['field', value])
+            field_and_values = filter_tuple[1]
+            if len(field_and_values) < 1:
+                return False, f"Invalid filter format: {filter_tuple}"
+            field = field_and_values[0]
+            values = field_and_values[1:]
+        else:
+            # Standard format: ('gt', 'field', value)
+            field = filter_tuple[1]
+            values = filter_tuple[2:]
+        
+        # Check if field is valid
+        if field not in ALL_SCREENING_FIELDS:
+            return False, f"Unknown field: {field}"
+        
+        field_config = ALL_SCREENING_FIELDS[field]
+        
+        # Check if operator is valid for this field
+        if operator not in field_config['comparison_ops']:
+            return False, f"Invalid operator '{operator}' for field '{field}'"
+        
+        # Validate values based on data type
+        if field_config['data_type'] == 'numeric':
+            try:
+                for value in values:
+                    float(value)
+            except ValueError:
+                return False, f"Non-numeric value for numeric field '{field}': {values}"
+        
+        # Check operator-specific requirements
+        if operator == 'btwn' and len(values) != 2:
+            return False, f"Between operator requires exactly 2 values for field '{field}'"
+        
+        if operator in ['gt', 'lt', 'gte', 'lte', 'eq'] and len(values) != 1:
+            return False, f"Operator '{operator}' requires exactly 1 value for field '{field}'"
+    
+    return True, None
