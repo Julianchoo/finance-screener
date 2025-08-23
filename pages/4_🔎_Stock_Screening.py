@@ -104,6 +104,10 @@ def create_screening_charts(df):
     if df.empty:
         return None, None, None
     
+    # Handle duplicate column names
+    if len(df.columns) != len(set(df.columns)):
+        df = df.loc[:, ~df.columns.duplicated(keep='first')]
+    
     # Market Cap vs PE Ratio scatter
     scatter_fig = None
     if all(col in df.columns for col in ['Market Cap (Billion $)', 'PE Ratio', 'Symbol']):
