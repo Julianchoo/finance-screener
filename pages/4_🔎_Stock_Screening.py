@@ -354,6 +354,9 @@ def main():
     
     sort_ascending = st.sidebar.checkbox("Sort Ascending", value=False)
     
+    # Debug mode
+    debug_mode = st.sidebar.checkbox("🐛 Debug Mode", value=False, help="Show detailed debugging information")
+    
     # Screen button
     screen_button = st.sidebar.button("🔍 Run Screen", type="primary", use_container_width=True)
     
@@ -441,13 +444,26 @@ def main():
             
             with st.spinner("🔍 Screening stocks... This may take a moment."):
                 # Execute the screen
-                results_df = advanced_screen_stocks(
-                    filters=filters,
-                    predefined_screen=predefined_screen,
-                    count=result_count,
-                    sort_field=sort_field,
-                    sort_asc=sort_ascending
-                )
+                if debug_mode:
+                    results_df, debug_info = advanced_screen_stocks(
+                        filters=filters,
+                        predefined_screen=predefined_screen,
+                        count=result_count,
+                        sort_field=sort_field,
+                        sort_asc=sort_ascending,
+                        debug_mode=True
+                    )
+                    # Store debug info in session state
+                    st.session_state['debug_info'] = debug_info
+                else:
+                    results_df = advanced_screen_stocks(
+                        filters=filters,
+                        predefined_screen=predefined_screen,
+                        count=result_count,
+                        sort_field=sort_field,
+                        sort_asc=sort_ascending,
+                        debug_mode=False
+                    )
                 
                 # Store results in session state
                 st.session_state['screening_results'] = results_df
@@ -458,6 +474,32 @@ def main():
         results_df = st.session_state['screening_results']
         timestamp = st.session_state.get('screening_timestamp', dt.now())
         
+        # Show debug information if available
+        if 'debug_info' in st.session_state and debug_mode:
+            debug_info = st.session_state['debug_info']
+            
+            with st.expander("🐛 Debug Information", expanded=True):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write("**Environment Info:**")
+                    st.write(f"yfinance version: `{debug_info.get('yfinance_version', 'Unknown')}`")
+                    st.write(f"Import status: `{debug_info.get('import_status', 'Unknown')}`")
+                    st.write(f"Query built: `{debug_info.get('query_built', 'Unknown')}`")
+                    st.write(f"API response: `{debug_info.get('api_response', 'Unknown')}`")
+                    
+                    if debug_info.get('available_yf_attrs'):
+                        st.write("**Available yfinance attributes:**")
+                        st.code(", ".join(debug_info['available_yf_attrs']))
+                
+                with col2:
+                    st.write("**Processing Steps:**")
+                    for step in debug_info.get('processing_steps', []):
+                        st.write(step)
+                
+                if debug_info.get('error_details'):
+                    st.error(f"**Error Details:** {debug_info['error_details']}")
+        
         if results_df.empty:
             st.error("❌ No stocks found matching your criteria. Try adjusting your filters.")
         else:
@@ -465,9 +507,14 @@ def main():
             st.caption(f"Results from: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
             
             # Results tabs
-            tab1, tab2, tab3, tab4 = st.tabs([
-                "📊 Results Table", "📈 Visualizations", "📋 Summary Stats", "📥 Export"
-            ])
+            tab_labels = ["📊 Results Table", "📈 Visualizations", "📋 Summary Stats", "📥 Export"]
+            if 'debug_info' in st.session_state and debug_mode:
+                tab_labels.append("🐛 Debug Info")
+            
+            tabs = st.tabs(tab_labels)
+            tab1, tab2, tab3, tab4 = tabs[:4]
+            if len(tabs) > 4:
+                tab5 = tabs[4]
             
             with tab1:
                 st.subheader("📊 Screening Results")
@@ -562,6 +609,66 @@ def main():
                     st.write(f"**Results:** {len(results_df)} stocks")
                     st.write(f"**Fields:** {len(results_df.columns)} columns")
                     st.write(f"**Generated:** {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            # Debug info tab
+            if len(tabs) > 4:
+                with tab5:
+                    st.subheader("🐛 Debug Information")
+                    
+                    if 'debug_info' in st.session_state:
+                        debug_info = st.session_state['debug_info']
+                        
+                        st.write("**Full Debug Information:**")
+                        st.json(debug_info)
+                        
+                        # Add a basic connectivity test
+                        if st.button("🔬 Test Basic yfinance"):
+                            with st.spinner("Testing basic yfinance functionality..."):
+                                try:
+                                    import yfinance as yf
+                                    
+                                    # Test basic ticker
+                                    ticker = yf.Ticker("AAPL")
+                                    info = ticker.info
+                                    
+                                    st.success("✅ Basic yfinance working!")
+                                    st.write(f"AAPL symbol: {info.get('symbol', 'N/A')}")
+                                    st.write(f"AAPL name: {info.get('longName', 'N/A')}")
+                                    st.write(f"AAPL price: ${info.get('currentPrice', 'N/A')}")
+                                    
+                                    # Test screen function existence
+                                    if hasattr(yf, 'screen'):
+                                        st.success("✅ yf.screen function exists!")
+                                    else:
+                                        st.error("❌ yf.screen function not found!")
+                                        
+                                    # Show available attributes
+                                    attrs = [attr for attr in dir(yf) if not attr.startswith('_')]
+                                    st.write("**yfinance module contents:**")
+                                    st.code(", ".join(attrs))
+                                    
+                                except Exception as e:
+                                    st.error(f"❌ Basic yfinance test failed: {e}")
+
+def test_equity_query_import():
+    """Test function to check EquityQuery availability"""
+    try:
+        from yfinance import EquityQuery
+        return "SUCCESS: Direct import", EquityQuery
+    except ImportError as e1:
+        try:
+            from yfinance.scrapers.equity import EquityQuery
+            return "SUCCESS: From scrapers.equity", EquityQuery
+        except ImportError as e2:
+            try:
+                import yfinance.scrapers as scrapers
+                EquityQuery = getattr(scrapers, 'EquityQuery', None)
+                if EquityQuery:
+                    return "SUCCESS: From scrapers module", EquityQuery
+                else:
+                    return f"FAILED: {e1}, {e2}, EquityQuery not in scrapers", None
+            except ImportError as e3:
+                return f"FAILED: {e1}, {e2}, {e3}", None
 
 if __name__ == "__main__":
     main()

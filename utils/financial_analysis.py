@@ -1244,7 +1244,7 @@ def build_equity_query(filters):
     
     return EquityQuery('and', query_objects)
 
-def advanced_screen_stocks(filters=None, predefined_screen=None, count=100, sort_field='marketcap', sort_asc=False):
+def advanced_screen_stocks(filters=None, predefined_screen=None, count=100, sort_field='marketcap', sort_asc=False, debug_mode=False):
     """
     Advanced stock screening using yfinance EquityQuery.
     Screens all available stocks, not just predefined lists.
@@ -1255,51 +1255,160 @@ def advanced_screen_stocks(filters=None, predefined_screen=None, count=100, sort
         count (int): Maximum number of results to return (max 250)
         sort_field (str): Field to sort results by
         sort_asc (bool): Sort ascending if True, descending if False
+        debug_mode (bool): Enable detailed debug logging
     
     Returns:
-        pandas.DataFrame: Screening results with comprehensive stock data
+        tuple: (pandas.DataFrame, dict) - Results and debug info
     """
-    import yfinance as yf
-    from yfinance import EquityQuery
+    debug_info = {
+        'yfinance_version': None,
+        'import_status': None,
+        'query_built': None,
+        'api_response': None,
+        'error_details': None,
+        'processing_steps': []
+    }
     
     try:
-        # Handle predefined screens
+        # Step 1: Import and version check
+        import yfinance as yf
+        debug_info['yfinance_version'] = getattr(yf, '__version__', 'Unknown')
+        debug_info['processing_steps'].append('✅ yfinance imported successfully')
+        
+        # Step 2: EquityQuery import test
+        try:
+            from yfinance import EquityQuery
+            debug_info['import_status'] = 'SUCCESS: Direct import'
+            debug_info['processing_steps'].append('✅ EquityQuery imported successfully')
+        except ImportError as e1:
+            try:
+                # Try alternative import paths
+                from yfinance.scrapers.equity import EquityQuery
+                debug_info['import_status'] = 'SUCCESS: From scrapers.equity'
+                debug_info['processing_steps'].append('✅ EquityQuery imported from scrapers.equity')
+            except ImportError as e2:
+                try:
+                    import yfinance.scrapers as scrapers
+                    EquityQuery = getattr(scrapers, 'EquityQuery', None)
+                    if EquityQuery:
+                        debug_info['import_status'] = 'SUCCESS: From scrapers module'
+                        debug_info['processing_steps'].append('✅ EquityQuery found in scrapers module')
+                    else:
+                        raise ImportError("EquityQuery not found in scrapers")
+                except ImportError as e3:
+                    debug_info['import_status'] = f'FAILED: {e1}, {e2}, {e3}'
+                    debug_info['processing_steps'].append('❌ EquityQuery import failed all methods')
+                    debug_info['error_details'] = str(e3)
+                    
+                    # Try to show what's available in yfinance
+                    available_attrs = [attr for attr in dir(yf) if not attr.startswith('_')]
+                    debug_info['available_yf_attrs'] = available_attrs[:20]  # Limit for display
+                    
+                    if debug_mode:
+                        return pd.DataFrame(), debug_info
+                    else:
+                        return pd.DataFrame()
+        
+        # Step 3: Handle predefined screens
         if predefined_screen:
             from config import PREDEFINED_SCREENS
             if predefined_screen in PREDEFINED_SCREENS:
                 screen_config = PREDEFINED_SCREENS[predefined_screen]
                 filters = screen_config['query_conditions']
+                debug_info['processing_steps'].append(f'✅ Using predefined screen: {predefined_screen}')
+                debug_info['processing_steps'].append(f'📝 Filters: {filters}')
+            else:
+                debug_info['processing_steps'].append(f'❌ Predefined screen not found: {predefined_screen}')
         
-        # Build query
+        # Step 4: Build query
         if filters:
             query = build_equity_query(filters)
+            debug_info['query_built'] = f'Query built with {len(filters)} filters'
+            debug_info['processing_steps'].append(f'✅ Query built: {type(query).__name__}')
         else:
             # No filters - get top stocks by market cap
-            query = EquityQuery('gt', ['marketcap', 1])  # Market cap > $1B
+            query = EquityQuery('gt', ['marketcap', 1000000000])  # Market cap > $1B
+            debug_info['query_built'] = 'Default query: market cap > $1B'
+            debug_info['processing_steps'].append('✅ Using default market cap query')
         
-        # Execute screen
+        # Step 5: Test basic yfinance connectivity
+        try:
+            test_ticker = yf.Ticker('AAPL')
+            test_info = test_ticker.info
+            if test_info and 'symbol' in test_info:
+                debug_info['processing_steps'].append('✅ Basic yfinance connectivity working')
+            else:
+                debug_info['processing_steps'].append('⚠️ yfinance connectivity issue')
+        except Exception as e:
+            debug_info['processing_steps'].append(f'❌ yfinance connectivity failed: {str(e)[:100]}')
+        
+        # Step 6: Check if screen function exists
+        if not hasattr(yf, 'screen'):
+            debug_info['processing_steps'].append('❌ yf.screen function not available')
+            debug_info['error_details'] = 'screen function not found in yfinance module'
+            if debug_mode:
+                return pd.DataFrame(), debug_info
+            else:
+                return pd.DataFrame()
+        else:
+            debug_info['processing_steps'].append('✅ yf.screen function found')
+        
+        # Step 7: Execute screen
+        debug_info['processing_steps'].append(f'🔄 Executing screen with count={count}, sort={sort_field}')
         response = yf.screen(query, count=min(count, 250), sortField=sort_field, sortAsc=sort_asc)
         
-        if not response or 'quotes' not in response:
+        # Step 8: Analyze response
+        if response is None:
+            debug_info['api_response'] = 'None response'
+            debug_info['processing_steps'].append('❌ API returned None')
+        elif isinstance(response, dict):
+            debug_info['api_response'] = f'Dict with keys: {list(response.keys())}'
+            debug_info['processing_steps'].append(f'✅ Got response dict: {list(response.keys())}')
+            
+            if 'quotes' not in response:
+                debug_info['processing_steps'].append('❌ No quotes key in response')
+            else:
+                quotes = response['quotes']
+                debug_info['processing_steps'].append(f'✅ Found {len(quotes)} quotes')
+                
+                if not quotes:
+                    debug_info['processing_steps'].append('⚠️ Quotes list is empty')
+                    if debug_mode:
+                        return pd.DataFrame(), debug_info
+                    else:
+                        return pd.DataFrame()
+                
+                # Convert to DataFrame
+                df = pd.DataFrame(quotes)
+                debug_info['processing_steps'].append(f'✅ Created DataFrame: {df.shape}')
+                
+                # Clean and format the data
+                df = format_screening_results(df)
+                debug_info['processing_steps'].append(f'✅ Formatted results: {df.shape}')
+                
+                if debug_mode:
+                    return df, debug_info
+                else:
+                    return df
+        else:
+            debug_info['api_response'] = f'Unexpected response type: {type(response)}'
+            debug_info['processing_steps'].append(f'❌ Unexpected response type: {type(response)}')
+        
+        # If we get here, something went wrong
+        if debug_mode:
+            return pd.DataFrame(), debug_info
+        else:
             return pd.DataFrame()
-        
-        # Extract quotes data
-        quotes = response['quotes']
-        
-        if not quotes:
-            return pd.DataFrame()
-        
-        # Convert to DataFrame
-        df = pd.DataFrame(quotes)
-        
-        # Clean and format the data
-        df = format_screening_results(df)
-        
-        return df
         
     except Exception as e:
-        print(f"Error in advanced stock screening: {e}")
-        return pd.DataFrame()
+        debug_info['error_details'] = f"{type(e).__name__}: {str(e)}"
+        debug_info['processing_steps'].append(f'❌ Exception: {str(e)[:200]}')
+        
+        if debug_mode:
+            return pd.DataFrame(), debug_info
+        else:
+            print(f"Error in advanced stock screening: {e}")
+            return pd.DataFrame()
 
 def format_screening_results(df):
     """
