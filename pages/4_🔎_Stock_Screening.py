@@ -338,17 +338,17 @@ def main():
         help="Maximum number of stocks to return"
     )
     
-    sort_options = ['marketcap', 'volume', 'price', 'trailingpe', 'dividendyield']
+    sort_options = ['intradaymarketcap', 'avgdailyvol3m', 'intradayprice', 'peratio.lasttwelvemonths', 'forward_dividend_yield']
     sort_field = st.sidebar.selectbox(
         "Sort by:",
         sort_options,
         index=0,
         format_func=lambda x: {
-            'marketcap': 'Market Cap',
-            'volume': 'Volume', 
-            'price': 'Price',
-            'trailingpe': 'PE Ratio',
-            'dividendyield': 'Dividend Yield'
+            'intradaymarketcap': 'Market Cap',
+            'avgdailyvol3m': 'Volume', 
+            'intradayprice': 'Price',
+            'peratio.lasttwelvemonths': 'PE Ratio',
+            'forward_dividend_yield': 'Dividend Yield'
         }.get(x, x)
     )
     
