@@ -191,7 +191,10 @@ def display_results_table(df, max_rows=100):
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        sort_options = [col for col in df.columns if str(df[col].dtype) in ['float64', 'int64']]
+        try:
+            sort_options = [col for col in df.columns if df[col].dtype.name in ['float64', 'int64']]
+        except:
+            sort_options = list(df.select_dtypes(include=['float64', 'int64']).columns)
         if sort_options:
             sort_by = st.selectbox("Sort by:", sort_options, index=0)
     
