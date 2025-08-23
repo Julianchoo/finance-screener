@@ -1244,7 +1244,7 @@ def build_equity_query(filters):
     
     return EquityQuery('and', query_objects)
 
-def advanced_screen_stocks(filters=None, predefined_screen=None, count=100, sort_field='marketcap', sort_asc=False, debug_mode=False):
+def advanced_screen_stocks(filters=None, predefined_screen=None, count=100, sort_field='percentchange', sort_asc=False, debug_mode=False):
     """
     Advanced stock screening using yfinance EquityQuery.
     Screens all available stocks, not just predefined lists.
@@ -1354,7 +1354,7 @@ def advanced_screen_stocks(filters=None, predefined_screen=None, count=100, sort
             debug_info['processing_steps'].append('✅ yf.screen function found')
         
         # Step 7: Execute screen
-        debug_info['processing_steps'].append(f'🔄 Executing screen with count={count}, sort={sort_field}')
+        debug_info['processing_steps'].append(f'🔄 Executing screen with count={count}, sortField={sort_field}')
         response = yf.screen(query, count=min(count, 250), sortField=sort_field, sortAsc=sort_asc)
         
         # Step 8: Analyze response
