@@ -194,13 +194,6 @@ ESSENTIAL_SCREENING_FIELDS = {
         'format': 'ratio',
         'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
     },
-    'peratio.forward': {
-        'display_name': 'P/E Ratio (Forward)',
-        'category': 'Valuation',
-        'data_type': 'numeric',
-        'format': 'ratio',
-        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
-    },
     'pegratio_5y': {
         'display_name': 'PEG Ratio (5Y)',
         'category': 'Valuation',

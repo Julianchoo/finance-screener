@@ -254,7 +254,7 @@ def display_results_table(df, max_rows=100):
     default_columns = [
         'symbol', 'shortName', 'currency', 'regularMarketPrice',
         'intradaymarketcap', 'trailingEps', 'peratio.lasttwelvemonths', 
-        'peratio.forward', 'dividendyield'
+        'dividendyield'
     ]
     
     # Map to likely actual column names that might exist
@@ -266,7 +266,6 @@ def display_results_table(df, max_rows=100):
         'intradaymarketcap': ['intradaymarketcap', 'Market Cap', 'marketCap'],
         'trailingEps': ['trailingEps', 'EPS', 'eps'],
         'peratio.lasttwelvemonths': ['peratio.lasttwelvemonths', 'PE Ratio', 'trailingPE'],
-        'peratio.forward': ['peratio.forward', 'Forward PE', 'forwardPE'],
         'dividendyield': ['dividendyield', 'Dividend Yield', 'dividendYield']
     }
     
