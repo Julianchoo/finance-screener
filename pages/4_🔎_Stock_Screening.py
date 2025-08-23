@@ -250,13 +250,63 @@ def display_results_table(df, max_rows=100):
         except:
             continue
     
-    # Display the table
-    st.dataframe(
-        display_df,
-        use_container_width=True,
-        hide_index=True,
-        height=600
-    )
+    # Define default columns to display
+    default_columns = [
+        'symbol', 'shortName', 'currency', 'regularMarketPrice',
+        'intradaymarketcap', 'trailingEps', 'peratio.lasttwelvemonths', 
+        'peratio.forward', 'dividendyield'
+    ]
+    
+    # Map to likely actual column names that might exist
+    column_mapping = {
+        'symbol': ['symbol', 'Symbol'],
+        'shortName': ['shortName', 'longName', 'Company', 'company'],
+        'currency': ['currency', 'Currency'],
+        'regularMarketPrice': ['regularMarketPrice', 'Price', 'price', 'currentPrice'],
+        'intradaymarketcap': ['intradaymarketcap', 'Market Cap', 'marketCap'],
+        'trailingEps': ['trailingEps', 'EPS', 'eps'],
+        'peratio.lasttwelvemonths': ['peratio.lasttwelvemonths', 'PE Ratio', 'trailingPE'],
+        'peratio.forward': ['peratio.forward', 'Forward PE', 'forwardPE'],
+        'dividendyield': ['dividendyield', 'Dividend Yield', 'dividendYield']
+    }
+    
+    # Find actual column names in the DataFrame
+    display_columns = []
+    for preferred_name, possible_names in column_mapping.items():
+        for possible_name in possible_names:
+            if possible_name in display_df.columns:
+                display_columns.append(possible_name)
+                break
+    
+    # If we found default columns, show only those, otherwise show all
+    if display_columns:
+        # Create a subset with only default columns
+        default_df = display_df[display_columns].copy()
+        
+        st.write("**Default View (Key Columns):**")
+        st.dataframe(
+            default_df,
+            use_container_width=True,
+            hide_index=True,
+            height=400
+        )
+        
+        # Add expander for full dataset
+        with st.expander("🔍 View All Columns", expanded=False):
+            st.dataframe(
+                display_df,
+                use_container_width=True,
+                hide_index=True,
+                height=600
+            )
+    else:
+        # Fallback: show all columns if we can't find the default ones
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True,
+            height=600
+        )
 
 def main():
     st.title("🔎 Advanced Stock Screening")
