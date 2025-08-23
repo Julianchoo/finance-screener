@@ -194,7 +194,7 @@ ESSENTIAL_SCREENING_FIELDS = {
         'format': 'ratio',
         'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
     },
-    'forwardpe': {
+    'peratio.forward': {
         'display_name': 'P/E Ratio (Forward)',
         'category': 'Valuation',
         'data_type': 'numeric',
