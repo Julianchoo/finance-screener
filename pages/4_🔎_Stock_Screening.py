@@ -243,9 +243,9 @@ def display_results_table(df, max_rows=100):
                 display_df[col] = display_df[col].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "N/A")
             elif 'Billion' in col and pd.api.types.is_numeric_dtype(display_df[col]):
                 display_df[col] = display_df[col].apply(lambda x: f"${x:.2f}B" if pd.notna(x) else "N/A")
-            elif ('Yield' in col or '%' in col) and pd.api.types.is_numeric_dtype(display_df[col]):
+            elif ('Yield' in col or '%' in col or 'Margin' in col) and pd.api.types.is_numeric_dtype(display_df[col]):
                 display_df[col] = display_df[col].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A")
-            elif col in ['PE Ratio', 'EPS', 'Debt to Equity'] and pd.api.types.is_numeric_dtype(display_df[col]):
+            elif col in ['PE Ratio', 'EPS', 'Debt to Equity', 'PEG Ratio'] and pd.api.types.is_numeric_dtype(display_df[col]):
                 display_df[col] = display_df[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "N/A")
         except:
             continue
@@ -254,7 +254,8 @@ def display_results_table(df, max_rows=100):
     preferred_default_columns = [
         'symbol', 'shortName', 'currency', 'regularMarketPrice',
         'intradaymarketcap', 'trailingEps', 'peratio.lasttwelvemonths', 
-        'forwardpe', 'dividendyield'
+        'pegratio_5y', 'dividendyield', 'grossprofitmargin.lasttwelvemonths',
+        'ebitdamargin.lasttwelvemonths', 'netincomemargin.lasttwelvemonths'
     ]
     
     # Map to likely actual column names that might exist
@@ -266,8 +267,11 @@ def display_results_table(df, max_rows=100):
         'intradaymarketcap': ['intradaymarketcap', 'Market Cap', 'marketCap'],
         'trailingEps': ['trailingEps', 'EPS', 'eps'],
         'peratio.lasttwelvemonths': ['peratio.lasttwelvemonths', 'PE Ratio', 'trailingPE'],
-        'forwardpe': ['forwardpe', 'Forward PE', 'forwardPE'],
-        'dividendyield': ['dividendyield', 'Dividend Yield', 'dividendYield']
+        'pegratio_5y': ['pegratio_5y', 'PEG Ratio', 'pegRatio'],
+        'dividendyield': ['dividendyield', 'Dividend Yield', 'dividendYield'],
+        'grossprofitmargin.lasttwelvemonths': ['grossprofitmargin.lasttwelvemonths', 'Gross Margin', 'grossMargin'],
+        'ebitdamargin.lasttwelvemonths': ['ebitdamargin.lasttwelvemonths', 'EBITDA Margin', 'ebitdaMargin'], 
+        'netincomemargin.lasttwelvemonths': ['netincomemargin.lasttwelvemonths', 'Net Margin', 'netMargin']
     }
     
     # Find actual column names that exist in the DataFrame

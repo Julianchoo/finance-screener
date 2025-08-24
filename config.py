@@ -194,18 +194,32 @@ ESSENTIAL_SCREENING_FIELDS = {
         'format': 'ratio',
         'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
     },
-    'forwardpe': {
-        'display_name': 'P/E Ratio (Forward)',
-        'category': 'Valuation',
-        'data_type': 'numeric',
-        'format': 'ratio',
-        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
-    },
     'pegratio_5y': {
         'display_name': 'PEG Ratio (5Y)',
         'category': 'Valuation',
         'data_type': 'numeric',
         'format': 'ratio',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'grossprofitmargin.lasttwelvemonths': {
+        'display_name': 'Gross Profit Margin',
+        'category': 'Profitability',
+        'data_type': 'numeric',
+        'format': 'percentage',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'ebitdamargin.lasttwelvemonths': {
+        'display_name': 'EBITDA Margin',
+        'category': 'Profitability', 
+        'data_type': 'numeric',
+        'format': 'percentage',
+        'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
+    },
+    'netincomemargin.lasttwelvemonths': {
+        'display_name': 'Net Income Margin',
+        'category': 'Profitability',
+        'data_type': 'numeric', 
+        'format': 'percentage',
         'comparison_ops': ['gt', 'lt', 'gte', 'lte', 'btwn']
     },
     'pricebookratio.quarterly': {
