@@ -250,11 +250,11 @@ def display_results_table(df, max_rows=100):
         except:
             continue
     
-    # Define default columns to display
-    default_columns = [
+    # Define preferred default columns to display
+    preferred_default_columns = [
         'symbol', 'shortName', 'currency', 'regularMarketPrice',
         'intradaymarketcap', 'trailingEps', 'peratio.lasttwelvemonths', 
-        'dividendyield'
+        'forwardpe', 'dividendyield'
     ]
     
     # Map to likely actual column names that might exist
@@ -266,46 +266,57 @@ def display_results_table(df, max_rows=100):
         'intradaymarketcap': ['intradaymarketcap', 'Market Cap', 'marketCap'],
         'trailingEps': ['trailingEps', 'EPS', 'eps'],
         'peratio.lasttwelvemonths': ['peratio.lasttwelvemonths', 'PE Ratio', 'trailingPE'],
+        'forwardpe': ['forwardpe', 'Forward PE', 'forwardPE'],
         'dividendyield': ['dividendyield', 'Dividend Yield', 'dividendYield']
     }
     
-    # Find actual column names in the DataFrame
-    display_columns = []
+    # Find actual column names that exist in the DataFrame
+    available_default_columns = []
     for preferred_name, possible_names in column_mapping.items():
         for possible_name in possible_names:
             if possible_name in display_df.columns:
-                display_columns.append(possible_name)
+                available_default_columns.append(possible_name)
                 break
     
-    # If we found default columns, show only those, otherwise show all
-    if display_columns:
-        # Create a subset with only default columns
-        default_df = display_df[display_columns].copy()
+    # Get all available columns
+    all_columns = list(display_df.columns)
+    
+    # Column selection interface
+    st.markdown("**Select columns to display:**")
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        # Default to our preferred columns if available, otherwise show all
+        default_selection = available_default_columns if available_default_columns else all_columns[:8]
         
-        st.write("**Default View (Key Columns):**")
-        st.dataframe(
-            default_df,
-            use_container_width=True,
-            hide_index=True,
-            height=400
+        selected_columns = st.multiselect(
+            "Choose columns:",
+            options=all_columns,
+            default=default_selection,
+            help="Select which columns to show in the results table"
         )
-        
-        # Add expander for full dataset
-        with st.expander("🔍 View All Columns", expanded=False):
-            st.dataframe(
-                display_df,
-                use_container_width=True,
-                hide_index=True,
-                height=600
-            )
+    
+    with col2:
+        # Quick action buttons
+        if st.button("🔄 Reset to Default"):
+            selected_columns = available_default_columns if available_default_columns else all_columns[:8]
+        if st.button("📊 Show All"):
+            selected_columns = all_columns
+    
+    # Filter DataFrame based on selected columns
+    if selected_columns:
+        filtered_df = display_df[selected_columns].copy()
     else:
-        # Fallback: show all columns if we can't find the default ones
-        st.dataframe(
-            display_df,
-            use_container_width=True,
-            hide_index=True,
-            height=600
-        )
+        st.warning("⚠️ Please select at least one column to display")
+        filtered_df = display_df
+    
+    # Display the single table
+    st.dataframe(
+        filtered_df,
+        use_container_width=True,
+        hide_index=True,
+        height=600
+    )
 
 def main():
     st.title("🔎 Advanced Stock Screening")

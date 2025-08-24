@@ -1354,8 +1354,25 @@ def advanced_screen_stocks(filters=None, predefined_screen=None, count=100, sort
             debug_info['processing_steps'].append('✅ yf.screen function found')
         
         # Step 7: Execute screen
-        debug_info['processing_steps'].append(f'🔄 Executing screen with count={count}, sortField={sort_field}')
-        response = yf.screen(query, count=min(count, 250), sortField=sort_field, sortAsc=sort_asc)
+        actual_count = min(count, 250)
+        debug_info['processing_steps'].append(f'🔄 Executing screen with count={actual_count}, sortField={sort_field}')
+        
+        # Try different parameter combinations to bypass potential limits
+        try:
+            # Method 1: Standard approach
+            response = yf.screen(query, count=actual_count, sortField=sort_field, sortAsc=sort_asc)
+            debug_info['processing_steps'].append(f'✅ Standard method executed')
+        except Exception as e:
+            debug_info['processing_steps'].append(f'❌ Standard method failed: {str(e)}')
+            try:
+                # Method 2: Try with size parameter instead of count
+                response = yf.screen(query, size=actual_count, sortField=sort_field, sortAsc=sort_asc)
+                debug_info['processing_steps'].append(f'✅ Size parameter method executed')
+            except Exception as e2:
+                debug_info['processing_steps'].append(f'❌ Size parameter method failed: {str(e2)}')
+                # Method 3: Try without count parameter
+                response = yf.screen(query, sortField=sort_field, sortAsc=sort_asc)
+                debug_info['processing_steps'].append(f'⚠️ Executed without count parameter - using API default')
         
         # Step 8: Analyze response
         if response is None:
@@ -1369,7 +1386,14 @@ def advanced_screen_stocks(filters=None, predefined_screen=None, count=100, sort
                 debug_info['processing_steps'].append('❌ No quotes key in response')
             else:
                 quotes = response['quotes']
-                debug_info['processing_steps'].append(f'✅ Found {len(quotes)} quotes')
+                actual_returned = len(quotes)
+                debug_info['processing_steps'].append(f'✅ Found {actual_returned} quotes (requested {actual_count})')
+                
+                # Check if we got fewer results than requested
+                if actual_returned < actual_count and actual_returned < 250:
+                    debug_info['processing_steps'].append(f'⚠️ Got {actual_returned} results, expected {actual_count} - possible API limitation')
+                elif actual_returned == 25:
+                    debug_info['processing_steps'].append(f'🔍 Exactly 25 results suggests API default limit override')
                 
                 if not quotes:
                     debug_info['processing_steps'].append('⚠️ Quotes list is empty')
