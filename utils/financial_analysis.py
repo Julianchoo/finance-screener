@@ -1322,6 +1322,39 @@ def advanced_screen_stocks(filters=None, predefined_screen=None, count=100, sort
         
         # Step 4: Build query
         if filters:
+            # Enhanced filter debugging
+            debug_info['processing_steps'].append(f'🔍 Processing {len(filters)} filters:')
+            for i, filter_tuple in enumerate(filters):
+                op, field_and_values = filter_tuple[0], filter_tuple[1]
+                field_name = field_and_values[0] if field_and_values else 'unknown'
+                values = field_and_values[1:] if len(field_and_values) > 1 else []
+                debug_info['processing_steps'].append(f'  Filter {i+1}: {op} [{field_name}] = {values}')
+            
+            # Test field validity before building query
+            try:
+                from yfinance import EquityQuery
+                # Test if fields are valid by checking EquityQuery.valid_fields
+                if hasattr(EquityQuery, 'valid_fields'):
+                    valid_fields = EquityQuery.valid_fields
+                    debug_info['processing_steps'].append(f'🔍 Testing field validity against {len(valid_fields)} known fields')
+                    
+                    for i, filter_tuple in enumerate(filters):
+                        op, field_and_values = filter_tuple[0], filter_tuple[1]
+                        field_name = field_and_values[0] if field_and_values else 'unknown'
+                        
+                        if field_name in valid_fields:
+                            debug_info['processing_steps'].append(f'  ✅ Field {i+1}: {field_name} is VALID')
+                        else:
+                            debug_info['processing_steps'].append(f'  ❌ Field {i+1}: {field_name} is INVALID')
+                            # Suggest alternatives
+                            pe_alternatives = [f for f in valid_fields if 'pe' in f.lower() or 'ratio' in f.lower()]
+                            if pe_alternatives:
+                                debug_info['processing_steps'].append(f'    Possible alternatives: {pe_alternatives[:5]}')
+                else:
+                    debug_info['processing_steps'].append('⚠️ Cannot access EquityQuery.valid_fields for validation')
+            except Exception as e:
+                debug_info['processing_steps'].append(f'⚠️ Field validation error: {str(e)[:100]}')
+            
             query = build_equity_query(filters)
             debug_info['query_built'] = f'Query built with {len(filters)} filters'
             debug_info['processing_steps'].append(f'✅ Query built: {type(query).__name__}')
@@ -1409,6 +1442,40 @@ def advanced_screen_stocks(filters=None, predefined_screen=None, count=100, sort
                 # Clean and format the data
                 df = format_screening_results(df)
                 debug_info['processing_steps'].append(f'✅ Formatted results: {df.shape}')
+                
+                # Validate results against filter criteria
+                if filters and not df.empty:
+                    debug_info['processing_steps'].append(f'🔍 Validating results against {len(filters)} filter(s):')
+                    
+                    for i, filter_tuple in enumerate(filters):
+                        op, field_and_values = filter_tuple[0], filter_tuple[1]
+                        field_name = field_and_values[0] if field_and_values else 'unknown'
+                        values = field_and_values[1:] if len(field_and_values) > 1 else []
+                        
+                        # Check if field exists in results
+                        if field_name in df.columns:
+                            field_data = df[field_name].dropna()
+                            if not field_data.empty:
+                                if op == 'lt' and values:
+                                    threshold = values[0]
+                                    violations = field_data[field_data >= threshold]
+                                    if len(violations) > 0:
+                                        debug_info['processing_steps'].append(f'  ⚠️ Filter {i+1} VIOLATION: {len(violations)} results have {field_name} >= {threshold}')
+                                        debug_info['processing_steps'].append(f'    Examples: {list(violations.head(3).values)}')
+                                    else:
+                                        debug_info['processing_steps'].append(f'  ✅ Filter {i+1} OK: All {len(field_data)} values < {threshold}')
+                                elif op == 'gt' and values:
+                                    threshold = values[0]
+                                    violations = field_data[field_data <= threshold]
+                                    if len(violations) > 0:
+                                        debug_info['processing_steps'].append(f'  ⚠️ Filter {i+1} VIOLATION: {len(violations)} results have {field_name} <= {threshold}')
+                                    else:
+                                        debug_info['processing_steps'].append(f'  ✅ Filter {i+1} OK: All {len(field_data)} values > {threshold}')
+                            else:
+                                debug_info['processing_steps'].append(f'  ⚠️ Filter {i+1}: No data for field {field_name}')
+                        else:
+                            debug_info['processing_steps'].append(f'  ❌ Filter {i+1}: Field {field_name} not found in results')
+                            debug_info['processing_steps'].append(f'    Available columns: {list(df.columns)[:10]}...')
                 
                 if debug_mode:
                     return df, debug_info
