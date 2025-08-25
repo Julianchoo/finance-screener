@@ -187,7 +187,7 @@ ESSENTIAL_SCREENING_FIELDS = {
     },
     
     # Valuation Metrics
-    'peratio.lasttwelvemonths': {
+    'trailingPE': {
         'display_name': 'P/E Ratio (Trailing)',
         'category': 'Valuation',
         'data_type': 'numeric',
@@ -461,7 +461,7 @@ PREDEFINED_SCREENS = {
         'description': 'Large companies with attractive valuations',
         'query_conditions': [
             ('gt', ['intradaymarketcap', 10000000000]),  # > $10B market cap
-            ('lt', ['peratio.lasttwelvemonths', 15]),  # PE < 15
+            ('lt', ['trailingPE', 15]),  # PE < 15
             ('gt', ['forward_dividend_yield', 2])  # Dividend yield > 2%
         ]
     },

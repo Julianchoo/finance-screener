@@ -206,7 +206,7 @@ def display_results_table(df, max_rows=100):
         
         if not sort_options:
             # Fallback to common numeric column names
-            common_numeric = ['intradaymarketcap', 'peratio.lasttwelvemonths', 'forward_dividend_yield', 'percentchange', 'volume']
+            common_numeric = ['intradaymarketcap', 'trailingPE', 'forward_dividend_yield', 'percentchange', 'volume']
             sort_options = [col for col in common_numeric if col in df.columns]
         
         if sort_options:
@@ -253,7 +253,7 @@ def display_results_table(df, max_rows=100):
     # Define preferred default columns to display
     preferred_default_columns = [
         'symbol', 'shortName', 'currency', 'regularMarketPrice',
-        'intradaymarketcap', 'trailingEps', 'peratio.lasttwelvemonths', 
+        'intradaymarketcap', 'trailingEps', 'trailingPE', 
         'pegratio_5y', 'dividendyield', 'grossprofitmargin.lasttwelvemonths',
         'ebitdamargin.lasttwelvemonths', 'netincomemargin.lasttwelvemonths'
     ]
@@ -266,7 +266,7 @@ def display_results_table(df, max_rows=100):
         'regularMarketPrice': ['regularMarketPrice', 'Price', 'price', 'currentPrice'],
         'intradaymarketcap': ['intradaymarketcap', 'Market Cap', 'marketCap'],
         'trailingEps': ['trailingEps', 'EPS', 'eps'],
-        'peratio.lasttwelvemonths': ['peratio.lasttwelvemonths', 'PE Ratio', 'trailingPE'],
+        'trailingPE': ['trailingPE', 'PE Ratio', 'peratio.lasttwelvemonths'],
         'pegratio_5y': ['pegratio_5y', 'PEG Ratio', 'pegRatio'],
         'dividendyield': ['dividendyield', 'Dividend Yield', 'dividendYield'],
         'grossprofitmargin.lasttwelvemonths': ['grossprofitmargin.lasttwelvemonths', 'Gross Margin', 'grossMargin'],
@@ -324,6 +324,7 @@ def display_results_table(df, max_rows=100):
 
 def main():
     st.title("🔎 Advanced Stock Screening")
+st.warning("⚠️ **Data Quality Notice**: Yahoo Finance screener data may have inconsistencies. Filtering and display values for the same metric can differ due to different data sources within Yahoo's system.")
     st.markdown("*Screen all available stocks with comprehensive filtering capabilities*")
     st.markdown("---")
     
@@ -430,7 +431,7 @@ def main():
         help="Maximum number of stocks to return"
     )
     
-    sort_options = ['intradaymarketcap', 'avgdailyvol3m', 'intradayprice', 'peratio.lasttwelvemonths', 'forward_dividend_yield']
+    sort_options = ['intradaymarketcap', 'avgdailyvol3m', 'intradayprice', 'trailingPE', 'forward_dividend_yield']
     sort_field = st.sidebar.selectbox(
         "Sort by:",
         sort_options,
@@ -439,7 +440,7 @@ def main():
             'intradaymarketcap': 'Market Cap',
             'avgdailyvol3m': 'Volume', 
             'intradayprice': 'Price',
-            'peratio.lasttwelvemonths': 'PE Ratio',
+            'trailingPE': 'PE Ratio',
             'forward_dividend_yield': 'Dividend Yield'
         }.get(x, x)
     )
